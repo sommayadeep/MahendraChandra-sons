@@ -540,8 +540,8 @@ exports.requestReturnOrExchange = async (req, res) => {
 
     if (mode === 'UPI') {
       refundDetails.upiId = String(upiId || '').trim();
-      if (requestType === 'Return' && !refundDetails.upiId) {
-        return res.status(400).json({ success: false, message: 'UPI ID is required for return request' });
+      if (!refundDetails.upiId) {
+        return res.status(400).json({ success: false, message: 'UPI ID is required' });
       }
     }
 
@@ -551,11 +551,8 @@ exports.requestReturnOrExchange = async (req, res) => {
       refundDetails.ifscCode = String(ifscCode || '').trim().toUpperCase();
       refundDetails.bankName = String(bankName || '').trim();
 
-      if (
-        requestType === 'Return' &&
-        (!refundDetails.accountHolderName || !refundDetails.accountNumber || !refundDetails.ifscCode || !refundDetails.bankName)
-      ) {
-        return res.status(400).json({ success: false, message: 'Complete bank details are required for return request' });
+      if (!refundDetails.accountHolderName || !refundDetails.accountNumber || !refundDetails.ifscCode || !refundDetails.bankName) {
+        return res.status(400).json({ success: false, message: 'Complete bank details are required' });
       }
     }
 
