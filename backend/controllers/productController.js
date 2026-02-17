@@ -2,6 +2,8 @@ const Product = require('../models/Product');
 const cloudinary = require('../config/cloudinary');
 const { Readable } = require('stream');
 
+const escapeRegExp = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const isRealEnvValue = (value) => {
   const v = String(value || '').trim().toLowerCase();
   return Boolean(v) && !['undefined', 'null', 'your_cloud_name', 'your_cloudinary_api_key', 'your_cloudinary_api_secret'].includes(v);
@@ -210,6 +212,27 @@ exports.createProduct = async (req, res) => {
       });
     }
 
+    const normalizedName = String(payload.name || '').trim();
+    const duplicateQuery = {
+      category: payload.category,
+      name: { $regex: `^${escapeRegExp(normalizedName)}$`, $options: 'i' }
+    };
+
+    const existingProduct = await Product.findOne(duplicateQuery);
+    if (existingProduct) {
+      Object.assign(existingProduct, payload);
+      await existingProduct.save();
+
+      return res.json({
+        success: true,
+        message: 'Existing product updated',
+        product: {
+          ...existingProduct.toObject(),
+          image: existingProduct.image || existingProduct.images?.[0] || ''
+        }
+      });
+    }
+
     const product = await Product.create(payload);
     res.status(201).json({
       success: true,
@@ -242,7 +265,7 @@ exports.updateProduct = async (req, res) => {
     const product = await Product.findByIdAndUpdate(
       req.params.id,
       payload,
-      { new: true, runValidators: true }
+      { new: true, runValidators: true, context: 'query' }
     );
 
     if (!product) {
