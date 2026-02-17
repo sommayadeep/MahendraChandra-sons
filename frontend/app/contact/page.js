@@ -111,7 +111,7 @@ const ContactPage = () => {
                     value={formData.phone}
                     onChange={handleChange}
                     className="input-field"
-                    placeholder="6909790275"
+                    placeholder="+91xxxxxxxxxx"
                   />
                 </div>
                 <div>
@@ -176,7 +176,7 @@ const ContactPage = () => {
                   </div>
                   <div>
                     <h3 className="text-white font-medium mb-1">Phone</h3>
-                    <p className="text-gray-400">6909790275</p>
+                    <p className="text-gray-400">+91xxxxxxxxxx</p>
                   </div>
                 </div>
 

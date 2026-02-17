@@ -150,7 +150,7 @@ const CheckoutPage = () => {
                       onChange={handleChange}
                       required
                       className="input-field"
-                      placeholder="6909790275"
+                      placeholder="+91xxxxxxxxxx"
                     />
                   </div>
 
