@@ -2,35 +2,30 @@ const buildSmsMessage = (otp) =>
   `Mahendra Chandra & Sons OTP: ${otp}. Valid for 10 minutes.`;
 
 exports.sendVerificationOtpSms = async ({ phone, otp }) => {
-  const apiUrl = process.env.SMS_API_URL || '';
-  const apiKey = process.env.SMS_API_KEY || '';
-  const sender = process.env.SMS_SENDER || 'MCSons';
+  const accountSid = process.env.TWILIO_ACCOUNT_SID || '';
+  const authToken = process.env.TWILIO_AUTH_TOKEN || '';
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER || '';
 
-  if (!apiUrl || !apiKey) {
+  if (!accountSid || !authToken || !fromNumber) {
     if (process.env.NODE_ENV !== 'production') {
       return { sent: false, devOtp: otp };
     }
-    throw new Error('SMS service is not configured. Missing SMS_API_URL or SMS_API_KEY.');
+    throw new Error('SMS service is not configured. Missing TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, or TWILIO_PHONE_NUMBER.');
   }
 
-  const response = await fetch(apiUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      to: phone,
-      sender,
-      message: buildSmsMessage(otp)
-    })
+  let twilioClientFactory;
+  try {
+    twilioClientFactory = require('twilio');
+  } catch (error) {
+    throw new Error('Twilio package is missing. Run npm install in backend service.');
+  }
+
+  const client = twilioClientFactory(accountSid, authToken);
+  await client.messages.create({
+    body: buildSmsMessage(otp),
+    from: fromNumber,
+    to: phone.startsWith('+') ? phone : `+91${phone}`
   });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`SMS send failed (${response.status}): ${text || 'Unknown error'}`);
-  }
 
   return { sent: true };
 };
-
