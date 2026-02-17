@@ -129,7 +129,7 @@ const orderSchema = new mongoose.Schema({
     refundDetails: {
       refundMode: {
         type: String,
-        enum: ['UPI', 'Bank'],
+        enum: ['UPI', 'Bank', 'Both'],
         default: 'UPI'
       },
       upiId: {

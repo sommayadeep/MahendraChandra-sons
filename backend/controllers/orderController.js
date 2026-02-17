@@ -528,33 +528,39 @@ exports.requestReturnOrExchange = async (req, res) => {
       });
     }
 
-    const mode = ['UPI', 'Bank'].includes(refundMode) ? refundMode : 'UPI';
+    const cleanedUpiId = String(upiId || '').trim();
+    const cleanedAccountHolderName = String(accountHolderName || '').trim();
+    const cleanedAccountNumber = String(accountNumber || '').trim();
+    const cleanedIfscCode = String(ifscCode || '').trim().toUpperCase();
+    const cleanedBankName = String(bankName || '').trim();
+
+    const hasUpi = Boolean(cleanedUpiId);
+    const hasBank =
+      Boolean(cleanedAccountHolderName) &&
+      Boolean(cleanedAccountNumber) &&
+      Boolean(cleanedIfscCode) &&
+      Boolean(cleanedBankName);
+
+    if (!hasUpi && !hasBank) {
+      return res.status(400).json({
+        success: false,
+        message: 'Provide either UPI ID or complete bank details'
+      });
+    }
+
+    let mode = ['UPI', 'Bank'].includes(refundMode) ? refundMode : 'UPI';
+    if (hasUpi && hasBank) mode = 'Both';
+    if (hasUpi && !hasBank) mode = 'UPI';
+    if (!hasUpi && hasBank) mode = 'Bank';
+
     const refundDetails = {
       refundMode: mode,
-      upiId: '',
-      accountHolderName: '',
-      accountNumber: '',
-      ifscCode: '',
-      bankName: ''
+      upiId: cleanedUpiId,
+      accountHolderName: cleanedAccountHolderName,
+      accountNumber: cleanedAccountNumber,
+      ifscCode: cleanedIfscCode,
+      bankName: cleanedBankName
     };
-
-    if (mode === 'UPI') {
-      refundDetails.upiId = String(upiId || '').trim();
-      if (!refundDetails.upiId) {
-        return res.status(400).json({ success: false, message: 'UPI ID is required' });
-      }
-    }
-
-    if (mode === 'Bank') {
-      refundDetails.accountHolderName = String(accountHolderName || '').trim();
-      refundDetails.accountNumber = String(accountNumber || '').trim();
-      refundDetails.ifscCode = String(ifscCode || '').trim().toUpperCase();
-      refundDetails.bankName = String(bankName || '').trim();
-
-      if (!refundDetails.accountHolderName || !refundDetails.accountNumber || !refundDetails.ifscCode || !refundDetails.bankName) {
-        return res.status(400).json({ success: false, message: 'Complete bank details are required' });
-      }
-    }
 
     order.returnExchangeRequests.push({
       requestType,

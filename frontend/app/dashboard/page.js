@@ -95,7 +95,6 @@ const DashboardPage = () => {
       [orderId]: {
         requestType: 'Return',
         reason: '',
-        refundMode: 'UPI',
         upiId: '',
         accountHolderName: '',
         accountNumber: '',
@@ -114,7 +113,6 @@ const DashboardPage = () => {
       await ordersAPI.requestReturnExchange(orderId, {
         requestType: form.requestType || 'Return',
         reason: form.reason || '',
-        refundMode: form.refundMode || 'UPI',
         upiId: form.upiId || '',
         accountHolderName: form.accountHolderName || '',
         accountNumber: form.accountNumber || '',
@@ -375,18 +373,7 @@ const DashboardPage = () => {
                                 <option value="Return">Return</option>
                                 <option value="Exchange">Exchange</option>
                               </select>
-                              <select
-                                value={(requestForms[order._id] || {}).refundMode || 'UPI'}
-                                onChange={(e) => updateRequestForm(order._id, 'refundMode', e.target.value)}
-                                className="input-field"
-                                disabled={
-                                  requestingOrderId === order._id ||
-                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
-                                }
-                              >
-                                <option value="UPI">UPI</option>
-                                <option value="Bank">Bank Transfer</option>
-                              </select>
+                              <div className="text-gray-400 text-sm self-center">Add UPI and/or Bank details</div>
                               <textarea
                                 value={(requestForms[order._id] || {}).reason || ''}
                                 onChange={(e) => updateRequestForm(order._id, 'reason', e.target.value)}
@@ -398,61 +385,56 @@ const DashboardPage = () => {
                                   ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
                                 }
                               />
-                              {((requestForms[order._id] || {}).refundMode || 'UPI') === 'UPI' ? (
-                                <input
-                                  value={(requestForms[order._id] || {}).upiId || ''}
-                                  onChange={(e) => updateRequestForm(order._id, 'upiId', e.target.value)}
-                                  className="input-field md:col-span-2"
-                                  placeholder="Your UPI ID (example@upi)"
-                                  disabled={
-                                    requestingOrderId === order._id ||
-                                    ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
-                                  }
-                                />
-                              ) : (
-                                <>
-                                  <input
-                                    value={(requestForms[order._id] || {}).accountHolderName || ''}
-                                    onChange={(e) => updateRequestForm(order._id, 'accountHolderName', e.target.value)}
-                                    className="input-field"
-                                    placeholder="Account Holder Name"
-                                    disabled={
-                                      requestingOrderId === order._id ||
-                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
-                                    }
-                                  />
-                                  <input
-                                    value={(requestForms[order._id] || {}).bankName || ''}
-                                    onChange={(e) => updateRequestForm(order._id, 'bankName', e.target.value)}
-                                    className="input-field"
-                                    placeholder="Bank Name"
-                                    disabled={
-                                      requestingOrderId === order._id ||
-                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
-                                    }
-                                  />
-                                  <input
-                                    value={(requestForms[order._id] || {}).accountNumber || ''}
-                                    onChange={(e) => updateRequestForm(order._id, 'accountNumber', e.target.value)}
-                                    className="input-field"
-                                    placeholder="Account Number"
-                                    disabled={
-                                      requestingOrderId === order._id ||
-                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
-                                    }
-                                  />
-                                  <input
-                                    value={(requestForms[order._id] || {}).ifscCode || ''}
-                                    onChange={(e) => updateRequestForm(order._id, 'ifscCode', e.target.value)}
-                                    className="input-field"
-                                    placeholder="IFSC Code"
-                                    disabled={
-                                      requestingOrderId === order._id ||
-                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
-                                    }
-                                  />
-                                </>
-                              )}
+                              <input
+                                value={(requestForms[order._id] || {}).upiId || ''}
+                                onChange={(e) => updateRequestForm(order._id, 'upiId', e.target.value)}
+                                className="input-field md:col-span-2"
+                                placeholder="UPI ID (example@upi)"
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                              />
+                              <input
+                                value={(requestForms[order._id] || {}).accountHolderName || ''}
+                                onChange={(e) => updateRequestForm(order._id, 'accountHolderName', e.target.value)}
+                                className="input-field"
+                                placeholder="Account Holder Name"
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                              />
+                              <input
+                                value={(requestForms[order._id] || {}).bankName || ''}
+                                onChange={(e) => updateRequestForm(order._id, 'bankName', e.target.value)}
+                                className="input-field"
+                                placeholder="Bank Name"
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                              />
+                              <input
+                                value={(requestForms[order._id] || {}).accountNumber || ''}
+                                onChange={(e) => updateRequestForm(order._id, 'accountNumber', e.target.value)}
+                                className="input-field"
+                                placeholder="Account Number"
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                              />
+                              <input
+                                value={(requestForms[order._id] || {}).ifscCode || ''}
+                                onChange={(e) => updateRequestForm(order._id, 'ifscCode', e.target.value)}
+                                className="input-field"
+                                placeholder="IFSC Code"
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                              />
                             </div>
                             <div className="mt-3">
                               <button
