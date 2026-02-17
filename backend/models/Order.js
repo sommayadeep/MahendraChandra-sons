@@ -107,6 +107,34 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  returnExchangeRequests: [{
+    requestType: {
+      type: String,
+      enum: ['Return', 'Exchange'],
+      required: true
+    },
+    reason: {
+      type: String,
+      default: ''
+    },
+    status: {
+      type: String,
+      enum: ['Requested', 'Approved', 'Rejected', 'Completed'],
+      default: 'Requested'
+    },
+    customerUid: {
+      type: String,
+      default: ''
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
   shippedAt: Date,
   deliveredAt: Date,
   createdAt: {

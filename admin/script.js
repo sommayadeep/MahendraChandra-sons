@@ -252,6 +252,62 @@
     });
   }
 
+  async function loadReturnExchangeRequests() {
+    var tbody = document.querySelector('#returnsTable tbody');
+    if (!tbody) return;
+
+    var data = await request('/orders/returns', {
+      method: 'GET',
+      headers: jsonHeaders()
+    });
+
+    tbody.innerHTML = '';
+    (data.requests || []).forEach(function (r) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td>' + (r.requestId || '') + '</td>' +
+        '<td>' + (r.orderId || '') + '</td>' +
+        '<td>' + (r.customerUid || '-') + '</td>' +
+        '<td>' + (r.customerName || '-') + '</td>' +
+        '<td>' + (r.customerPhone || '-') + '</td>' +
+        '<td>' + (r.requestType || '-') + '</td>' +
+        '<td>' + (r.reason || '-') + '</td>' +
+        '<td>' + (r.status || '-') + '</td>' +
+        '<td>' + (r.createdAt ? new Date(r.createdAt).toLocaleString() : '-') + '</td>';
+
+      var actions = document.createElement('td');
+      var statusSelect = document.createElement('select');
+      ['Requested', 'Approved', 'Rejected', 'Completed'].forEach(function (s) {
+        var option = document.createElement('option');
+        option.value = s;
+        option.textContent = s;
+        if (r.status === s) option.selected = true;
+        statusSelect.appendChild(option);
+      });
+
+      var updateBtn = document.createElement('button');
+      updateBtn.textContent = 'Update';
+      updateBtn.onclick = async function () {
+        try {
+          await request('/orders/returns/' + r.requestId + '/status', {
+            method: 'PUT',
+            headers: jsonHeaders(),
+            body: JSON.stringify({ status: statusSelect.value })
+          });
+          setMessage('dashboardMessage', 'Return/Exchange status updated', true);
+          await loadReturnExchangeRequests();
+        } catch (err) {
+          setMessage('dashboardMessage', err.message, false);
+        }
+      };
+
+      actions.appendChild(statusSelect);
+      actions.appendChild(updateBtn);
+      tr.appendChild(actions);
+      tbody.appendChild(tr);
+    });
+  }
+
   function setupLoginPage() {
     var form = document.getElementById('loginForm');
     if (!form) return;
@@ -295,6 +351,7 @@
       try {
         await loadProducts();
         await loadOrders();
+        await loadReturnExchangeRequests();
         setMessage('dashboardMessage', 'Data refreshed', true);
       } catch (err) {
         setMessage('dashboardMessage', err.message, false);
@@ -396,6 +453,7 @@
       try {
         await loadProducts();
         await loadOrders();
+        await loadReturnExchangeRequests();
       } catch (err) {
         setMessage('dashboardMessage', err.message, false);
       }

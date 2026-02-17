@@ -79,6 +79,9 @@ export const ordersAPI = {
   getOrder: (id) => api.get(`/orders/${id}`),
   getAllOrders: (params) => api.get('/orders/all', { params }),
   updateOrderStatus: (id, data) => api.put(`/orders/${id}/status`, data),
+  requestReturnExchange: (id, data) => api.post(`/orders/${id}/return-exchange`, data),
+  getReturnExchangeRequests: () => api.get('/orders/returns'),
+  updateReturnExchangeStatus: (requestId, data) => api.put(`/orders/returns/${requestId}/status`, data),
   getAnalytics: () => api.get('/orders/analytics'),
 };
 

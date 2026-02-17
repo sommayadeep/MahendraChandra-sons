@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-import { authAPI } from '@/lib/api';
+import { authAPI, ordersAPI } from '@/lib/api';
 import toast from 'react-hot-toast';
 
 const DashboardPage = () => {
@@ -15,6 +15,7 @@ const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState('orders');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [requestingOrderId, setRequestingOrderId] = useState('');
   const [profileForm, setProfileForm] = useState({
     name: '',
     phone: '',
@@ -78,6 +79,26 @@ const DashboardPage = () => {
       case 'Delivered': return 'text-green-500';
       case 'Cancelled': return 'text-red-500';
       default: return 'text-gray-500';
+    }
+  };
+
+  const getLatestReturnExchangeRequest = (order) => {
+    const requests = order.returnExchangeRequests || [];
+    if (requests.length === 0) return null;
+    return [...requests].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  };
+
+  const submitReturnExchangeRequest = async (orderId, requestType) => {
+    const reason = window.prompt(`Reason for ${requestType.toLowerCase()} request:`) || '';
+    setRequestingOrderId(orderId);
+    try {
+      await ordersAPI.requestReturnExchange(orderId, { requestType, reason });
+      toast.success(`${requestType} request submitted`);
+      await fetchOrders();
+    } catch (error) {
+      toast.error(error.response?.data?.message || `Failed to submit ${requestType.toLowerCase()} request`);
+    } finally {
+      setRequestingOrderId('');
     }
   };
 
@@ -297,6 +318,48 @@ const DashboardPage = () => {
                             ))}
                           </div>
                         </div>
+
+                        {order.orderStatus === 'Delivered' && (
+                          <div className="mt-4 pt-4 border-t border-gray-800">
+                            <p className="text-gray-400 text-sm mb-2">Return / Exchange</p>
+                            {(() => {
+                              const latestRequest = getLatestReturnExchangeRequest(order);
+                              if (latestRequest) {
+                                return (
+                                  <p className="text-sm text-gray-300 mb-3">
+                                    Latest Request: <span className="text-gold-500">{latestRequest.requestType}</span> | Status: <span className="text-gold-500">{latestRequest.status}</span>
+                                  </p>
+                                );
+                              }
+
+                              return <p className="text-sm text-gray-500 mb-3">No return/exchange request raised.</p>;
+                            })()}
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => submitReturnExchangeRequest(order._id, 'Return')}
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                                className="bg-luxury-charcoal text-white px-3 py-2 text-sm border border-gray-700 hover:border-gold-500 disabled:opacity-50"
+                              >
+                                Request Return
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => submitReturnExchangeRequest(order._id, 'Exchange')}
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                                className="bg-luxury-charcoal text-white px-3 py-2 text-sm border border-gray-700 hover:border-gold-500 disabled:opacity-50"
+                              >
+                                Request Exchange
+                              </button>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="mt-4 pt-4 border-t border-gray-800 flex justify-end">
                           <Link

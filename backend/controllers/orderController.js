@@ -64,7 +64,11 @@ const formatOrder = (orderDoc) => {
     shippingAddress,
     phone: order.phone || shippingDetails.phone || '',
     totalAmount,
-    totalPrice: order.totalPrice || totalAmount
+    totalPrice: order.totalPrice || totalAmount,
+    returnExchangeRequests: (order.returnExchangeRequests || []).map((request) => ({
+      ...request,
+      _id: request._id
+    }))
   };
 };
 
@@ -474,6 +478,129 @@ exports.getOrdersByUserId = async (req, res) => {
 
     const orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
     res.json({ success: true, orders: orders.map(formatOrder) });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Request return or exchange
+// @route   POST /api/orders/:id/return-exchange
+// @access  Private
+exports.requestReturnOrExchange = async (req, res) => {
+  try {
+    const { requestType, reason } = req.body;
+    if (!['Return', 'Exchange'].includes(requestType)) {
+      return res.status(400).json({ success: false, message: 'Invalid request type' });
+    }
+
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (String(order.user) !== req.user.id && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    if (order.orderStatus !== 'Delivered') {
+      return res.status(400).json({
+        success: false,
+        message: 'Return/Exchange is available only for delivered orders'
+      });
+    }
+
+    const activeRequest = (order.returnExchangeRequests || []).find((item) =>
+      ['Requested', 'Approved'].includes(item.status)
+    );
+    if (activeRequest) {
+      return res.status(400).json({
+        success: false,
+        message: 'An active return/exchange request already exists for this order'
+      });
+    }
+
+    order.returnExchangeRequests.push({
+      requestType,
+      reason: String(reason || '').trim(),
+      status: 'Requested',
+      customerUid: req.user.id,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    await order.save();
+
+    res.status(201).json({
+      success: true,
+      message: `${requestType} request submitted`,
+      order: formatOrder(order)
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get all return/exchange requests
+// @route   GET /api/orders/returns
+// @access  Private/Admin
+exports.getReturnExchangeRequests = async (req, res) => {
+  try {
+    const orders = await Order.find({ 'returnExchangeRequests.0': { $exists: true } })
+      .populate('user', 'name email phone')
+      .sort({ createdAt: -1 });
+
+    const requests = [];
+    for (const order of orders) {
+      for (const item of order.returnExchangeRequests || []) {
+        requests.push({
+          requestId: item._id,
+          orderId: order._id,
+          customerUid: item.customerUid || String(order.user?._id || order.user || ''),
+          customerName: order.user?.name || order.shippingDetails?.name || '',
+          customerPhone: order.shippingDetails?.phone || order.phone || '',
+          requestType: item.requestType,
+          reason: item.reason || '',
+          status: item.status,
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt
+        });
+      }
+    }
+
+    requests.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.json({ success: true, requests });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Update return/exchange request status
+// @route   PUT /api/orders/returns/:requestId/status
+// @access  Private/Admin
+exports.updateReturnExchangeStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    const allowed = ['Requested', 'Approved', 'Rejected', 'Completed'];
+    if (!allowed.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid return/exchange status' });
+    }
+
+    const order = await Order.findOne({ 'returnExchangeRequests._id': req.params.requestId });
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Request not found' });
+    }
+
+    const request = order.returnExchangeRequests.id(req.params.requestId);
+    if (!request) {
+      return res.status(404).json({ success: false, message: 'Request not found' });
+    }
+
+    request.status = status;
+    request.updatedAt = new Date();
+    await order.save();
+
+    res.json({ success: true, message: 'Return/Exchange request updated' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
