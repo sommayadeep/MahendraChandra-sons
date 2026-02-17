@@ -130,6 +130,34 @@
     });
   }
 
+  function ensureModernDashboardLayout() {
+    var isDashboard = window.location.pathname.indexOf('/admin/dashboard.html') >= 0;
+    if (!isDashboard) return;
+
+    var quickGrid = document.querySelector('.quick-access-grid');
+    if (!quickGrid) {
+      var h1 = document.querySelector('h1');
+      if (h1) {
+        var grid = document.createElement('div');
+        grid.className = 'quick-access-grid';
+        grid.innerHTML =
+          '<a class=\"quick-box\" href=\"#productsSection\"><h3>Products</h3><p>Add, update, delete products</p></a>' +
+          '<a class=\"quick-box\" href=\"/admin/orders.html\"><h3>Orders Portal</h3><p>Manage all customer orders</p></a>' +
+          '<a class=\"quick-box\" href=\"/admin/returns.html\"><h3>Return/Exchange Portal</h3><p>Handle return and exchange requests</p></a>';
+        h1.insertAdjacentElement('afterend', grid);
+      }
+    }
+
+    // Hide legacy combined sections if old HTML is cached by browser.
+    var cards = document.querySelectorAll('.card');
+    cards.forEach(function (card) {
+      var title = (card.querySelector('h2') || {}).textContent || '';
+      if (title.indexOf('Order Management') >= 0 || title.indexOf('Return / Exchange Requests') >= 0) {
+        card.style.display = 'none';
+      }
+    });
+  }
+
   async function fetchOrdersData() {
     return request('/orders', {
       method: 'GET',
@@ -433,7 +461,7 @@
         });
 
         localStorage.setItem('token', data.token);
-        window.location.href = '/admin/dashboard.html';
+        window.location.href = '/admin/dashboard.html?v=4';
       } catch (err) {
         setMessage('loginMessage', err.message, false);
       }
@@ -443,6 +471,7 @@
   function setupDashboardPage() {
     if (!document.getElementById('addProductForm')) return;
     if (!ensureAuthenticatedPage()) return;
+    ensureModernDashboardLayout();
     bindLogoutButton();
 
     var refreshBtn = document.getElementById('refreshBtn');
