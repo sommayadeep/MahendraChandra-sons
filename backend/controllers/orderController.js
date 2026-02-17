@@ -488,7 +488,16 @@ exports.getOrdersByUserId = async (req, res) => {
 // @access  Private
 exports.requestReturnOrExchange = async (req, res) => {
   try {
-    const { requestType, reason } = req.body;
+    const {
+      requestType,
+      reason,
+      refundMode,
+      upiId,
+      accountHolderName,
+      accountNumber,
+      ifscCode,
+      bankName
+    } = req.body;
     if (!['Return', 'Exchange'].includes(requestType)) {
       return res.status(400).json({ success: false, message: 'Invalid request type' });
     }
@@ -519,11 +528,43 @@ exports.requestReturnOrExchange = async (req, res) => {
       });
     }
 
+    const mode = ['UPI', 'Bank'].includes(refundMode) ? refundMode : 'UPI';
+    const refundDetails = {
+      refundMode: mode,
+      upiId: '',
+      accountHolderName: '',
+      accountNumber: '',
+      ifscCode: '',
+      bankName: ''
+    };
+
+    if (mode === 'UPI') {
+      refundDetails.upiId = String(upiId || '').trim();
+      if (requestType === 'Return' && !refundDetails.upiId) {
+        return res.status(400).json({ success: false, message: 'UPI ID is required for return request' });
+      }
+    }
+
+    if (mode === 'Bank') {
+      refundDetails.accountHolderName = String(accountHolderName || '').trim();
+      refundDetails.accountNumber = String(accountNumber || '').trim();
+      refundDetails.ifscCode = String(ifscCode || '').trim().toUpperCase();
+      refundDetails.bankName = String(bankName || '').trim();
+
+      if (
+        requestType === 'Return' &&
+        (!refundDetails.accountHolderName || !refundDetails.accountNumber || !refundDetails.ifscCode || !refundDetails.bankName)
+      ) {
+        return res.status(400).json({ success: false, message: 'Complete bank details are required for return request' });
+      }
+    }
+
     order.returnExchangeRequests.push({
       requestType,
       reason: String(reason || '').trim(),
       status: 'Requested',
       customerUid: req.user.id,
+      refundDetails,
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -560,6 +601,12 @@ exports.getReturnExchangeRequests = async (req, res) => {
           customerPhone: order.shippingDetails?.phone || order.phone || '',
           requestType: item.requestType,
           reason: item.reason || '',
+          refundMode: item.refundDetails?.refundMode || 'UPI',
+          upiId: item.refundDetails?.upiId || '',
+          accountHolderName: item.refundDetails?.accountHolderName || '',
+          accountNumber: item.refundDetails?.accountNumber || '',
+          ifscCode: item.refundDetails?.ifscCode || '',
+          bankName: item.refundDetails?.bankName || '',
           status: item.status,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt

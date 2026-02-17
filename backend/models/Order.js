@@ -126,6 +126,33 @@ const orderSchema = new mongoose.Schema({
       type: String,
       default: ''
     },
+    refundDetails: {
+      refundMode: {
+        type: String,
+        enum: ['UPI', 'Bank'],
+        default: 'UPI'
+      },
+      upiId: {
+        type: String,
+        default: ''
+      },
+      accountHolderName: {
+        type: String,
+        default: ''
+      },
+      accountNumber: {
+        type: String,
+        default: ''
+      },
+      ifscCode: {
+        type: String,
+        default: ''
+      },
+      bankName: {
+        type: String,
+        default: ''
+      }
+    },
     createdAt: {
       type: Date,
       default: Date.now

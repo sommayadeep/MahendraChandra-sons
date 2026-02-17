@@ -264,6 +264,19 @@
     tbody.innerHTML = '';
     (data.requests || []).forEach(function (r) {
       var tr = document.createElement('tr');
+      var refundMode = r.refundMode || '-';
+      var refundDetails = '-';
+      if (refundMode === 'UPI') {
+        refundDetails = r.upiId || '-';
+      } else if (refundMode === 'Bank') {
+        var parts = [
+          r.accountHolderName ? 'Name: ' + r.accountHolderName : '',
+          r.bankName ? 'Bank: ' + r.bankName : '',
+          r.accountNumber ? 'A/C: ' + r.accountNumber : '',
+          r.ifscCode ? 'IFSC: ' + r.ifscCode : ''
+        ].filter(Boolean);
+        refundDetails = parts.length ? parts.join(' | ') : '-';
+      }
       tr.innerHTML =
         '<td>' + (r.requestId || '') + '</td>' +
         '<td>' + (r.orderId || '') + '</td>' +
@@ -272,6 +285,8 @@
         '<td>' + (r.customerPhone || '-') + '</td>' +
         '<td>' + (r.requestType || '-') + '</td>' +
         '<td>' + (r.reason || '-') + '</td>' +
+        '<td>' + refundMode + '</td>' +
+        '<td>' + refundDetails + '</td>' +
         '<td>' + (r.status || '-') + '</td>' +
         '<td>' + (r.createdAt ? new Date(r.createdAt).toLocaleString() : '-') + '</td>';
 

@@ -16,6 +16,7 @@ const DashboardPage = () => {
   const [activeSection, setActiveSection] = useState('orders');
   const [savingProfile, setSavingProfile] = useState(false);
   const [requestingOrderId, setRequestingOrderId] = useState('');
+  const [requestForms, setRequestForms] = useState({});
   const [profileForm, setProfileForm] = useState({
     name: '',
     phone: '',
@@ -88,15 +89,42 @@ const DashboardPage = () => {
     return [...requests].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
   };
 
-  const submitReturnExchangeRequest = async (orderId, requestType) => {
-    const reason = window.prompt(`Reason for ${requestType.toLowerCase()} request:`) || '';
+  const updateRequestForm = (orderId, field, value) => {
+    setRequestForms((prev) => ({
+      ...prev,
+      [orderId]: {
+        requestType: 'Return',
+        reason: '',
+        refundMode: 'UPI',
+        upiId: '',
+        accountHolderName: '',
+        accountNumber: '',
+        ifscCode: '',
+        bankName: '',
+        ...(prev[orderId] || {}),
+        [field]: value
+      }
+    }));
+  };
+
+  const submitReturnExchangeRequest = async (orderId) => {
+    const form = requestForms[orderId] || {};
     setRequestingOrderId(orderId);
     try {
-      await ordersAPI.requestReturnExchange(orderId, { requestType, reason });
-      toast.success(`${requestType} request submitted`);
+      await ordersAPI.requestReturnExchange(orderId, {
+        requestType: form.requestType || 'Return',
+        reason: form.reason || '',
+        refundMode: form.refundMode || 'UPI',
+        upiId: form.upiId || '',
+        accountHolderName: form.accountHolderName || '',
+        accountNumber: form.accountNumber || '',
+        ifscCode: form.ifscCode || '',
+        bankName: form.bankName || ''
+      });
+      toast.success('Request submitted');
       await fetchOrders();
     } catch (error) {
-      toast.error(error.response?.data?.message || `Failed to submit ${requestType.toLowerCase()} request`);
+      toast.error(error.response?.data?.message || 'Failed to submit request');
     } finally {
       setRequestingOrderId('');
     }
@@ -334,28 +362,109 @@ const DashboardPage = () => {
 
                               return <p className="text-sm text-gray-500 mb-3">No return/exchange request raised.</p>;
                             })()}
-                            <div className="flex flex-wrap gap-2">
+                            <div className="grid md:grid-cols-2 gap-3">
+                              <select
+                                value={(requestForms[order._id] || {}).requestType || 'Return'}
+                                onChange={(e) => updateRequestForm(order._id, 'requestType', e.target.value)}
+                                className="input-field"
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                              >
+                                <option value="Return">Return</option>
+                                <option value="Exchange">Exchange</option>
+                              </select>
+                              <select
+                                value={(requestForms[order._id] || {}).refundMode || 'UPI'}
+                                onChange={(e) => updateRequestForm(order._id, 'refundMode', e.target.value)}
+                                className="input-field"
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                              >
+                                <option value="UPI">UPI</option>
+                                <option value="Bank">Bank Transfer</option>
+                              </select>
+                              <textarea
+                                value={(requestForms[order._id] || {}).reason || ''}
+                                onChange={(e) => updateRequestForm(order._id, 'reason', e.target.value)}
+                                className="input-field md:col-span-2"
+                                rows={2}
+                                placeholder="Reason for return/exchange"
+                                disabled={
+                                  requestingOrderId === order._id ||
+                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                }
+                              />
+                              {((requestForms[order._id] || {}).refundMode || 'UPI') === 'UPI' ? (
+                                <input
+                                  value={(requestForms[order._id] || {}).upiId || ''}
+                                  onChange={(e) => updateRequestForm(order._id, 'upiId', e.target.value)}
+                                  className="input-field md:col-span-2"
+                                  placeholder="Your UPI ID (example@upi)"
+                                  disabled={
+                                    requestingOrderId === order._id ||
+                                    ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                  }
+                                />
+                              ) : (
+                                <>
+                                  <input
+                                    value={(requestForms[order._id] || {}).accountHolderName || ''}
+                                    onChange={(e) => updateRequestForm(order._id, 'accountHolderName', e.target.value)}
+                                    className="input-field"
+                                    placeholder="Account Holder Name"
+                                    disabled={
+                                      requestingOrderId === order._id ||
+                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                    }
+                                  />
+                                  <input
+                                    value={(requestForms[order._id] || {}).bankName || ''}
+                                    onChange={(e) => updateRequestForm(order._id, 'bankName', e.target.value)}
+                                    className="input-field"
+                                    placeholder="Bank Name"
+                                    disabled={
+                                      requestingOrderId === order._id ||
+                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                    }
+                                  />
+                                  <input
+                                    value={(requestForms[order._id] || {}).accountNumber || ''}
+                                    onChange={(e) => updateRequestForm(order._id, 'accountNumber', e.target.value)}
+                                    className="input-field"
+                                    placeholder="Account Number"
+                                    disabled={
+                                      requestingOrderId === order._id ||
+                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                    }
+                                  />
+                                  <input
+                                    value={(requestForms[order._id] || {}).ifscCode || ''}
+                                    onChange={(e) => updateRequestForm(order._id, 'ifscCode', e.target.value)}
+                                    className="input-field"
+                                    placeholder="IFSC Code"
+                                    disabled={
+                                      requestingOrderId === order._id ||
+                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                    }
+                                  />
+                                </>
+                              )}
+                            </div>
+                            <div className="mt-3">
                               <button
                                 type="button"
-                                onClick={() => submitReturnExchangeRequest(order._id, 'Return')}
+                                onClick={() => submitReturnExchangeRequest(order._id)}
                                 disabled={
                                   requestingOrderId === order._id ||
                                   ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
                                 }
                                 className="bg-luxury-charcoal text-white px-3 py-2 text-sm border border-gray-700 hover:border-gold-500 disabled:opacity-50"
                               >
-                                Request Return
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => submitReturnExchangeRequest(order._id, 'Exchange')}
-                                disabled={
-                                  requestingOrderId === order._id ||
-                                  ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
-                                }
-                                className="bg-luxury-charcoal text-white px-3 py-2 text-sm border border-gray-700 hover:border-gold-500 disabled:opacity-50"
-                              >
-                                Request Exchange
+                                Submit Request
                               </button>
                             </div>
                           </div>
