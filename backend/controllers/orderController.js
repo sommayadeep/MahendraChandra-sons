@@ -528,38 +528,37 @@ exports.requestReturnOrExchange = async (req, res) => {
       });
     }
 
+    const mode = ['UPI', 'Bank'].includes(refundMode) ? refundMode : 'UPI';
     const cleanedUpiId = String(upiId || '').trim();
     const cleanedAccountHolderName = String(accountHolderName || '').trim();
     const cleanedAccountNumber = String(accountNumber || '').trim();
     const cleanedIfscCode = String(ifscCode || '').trim().toUpperCase();
     const cleanedBankName = String(bankName || '').trim();
 
-    const hasUpi = Boolean(cleanedUpiId);
-    const hasBank =
-      Boolean(cleanedAccountHolderName) &&
-      Boolean(cleanedAccountNumber) &&
-      Boolean(cleanedIfscCode) &&
-      Boolean(cleanedBankName);
-
-    if (!hasUpi && !hasBank) {
+    if (mode === 'UPI' && !cleanedUpiId) {
       return res.status(400).json({
         success: false,
-        message: 'Provide either UPI ID or complete bank details'
+        message: 'UPI ID is required'
       });
     }
 
-    let mode = ['UPI', 'Bank'].includes(refundMode) ? refundMode : 'UPI';
-    if (hasUpi && hasBank) mode = 'Both';
-    if (hasUpi && !hasBank) mode = 'UPI';
-    if (!hasUpi && hasBank) mode = 'Bank';
+    if (
+      mode === 'Bank' &&
+      (!cleanedAccountHolderName || !cleanedAccountNumber || !cleanedIfscCode || !cleanedBankName)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: 'Complete bank details are required'
+      });
+    }
 
     const refundDetails = {
       refundMode: mode,
-      upiId: cleanedUpiId,
-      accountHolderName: cleanedAccountHolderName,
-      accountNumber: cleanedAccountNumber,
-      ifscCode: cleanedIfscCode,
-      bankName: cleanedBankName
+      upiId: mode === 'UPI' ? cleanedUpiId : '',
+      accountHolderName: mode === 'Bank' ? cleanedAccountHolderName : '',
+      accountNumber: mode === 'Bank' ? cleanedAccountNumber : '',
+      ifscCode: mode === 'Bank' ? cleanedIfscCode : '',
+      bankName: mode === 'Bank' ? cleanedBankName : ''
     };
 
     order.returnExchangeRequests.push({
