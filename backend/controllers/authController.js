@@ -91,30 +91,45 @@ exports.registerUser = async (req, res) => {
       });
     }
 
-    // Check if user exists
-    const userExists = await User.findOne({ email: normalizedEmail });
-    if (userExists) {
+    // If user exists and is verified, block duplicate registration.
+    // If user exists but unverified, refresh profile/password and continue OTP flow.
+    let user = await User.findOne({ email: normalizedEmail }).select('+password +emailOtpHash +phoneOtpHash');
+    if (user && user.isEmailVerified && user.isPhoneVerified) {
       return res.status(400).json({
         success: false,
         message: 'User already exists with this email'
       });
     }
 
-    // Create user
-    const user = await User.create({
-      name,
-      email: normalizedEmail,
-      password,
-      phone: normalizedPhone,
-      address,
-      storeName,
-      city,
-      state,
-      pincode,
-      gstNumber,
-      isEmailVerified: false,
-      isPhoneVerified: false
-    });
+    if (!user) {
+      user = await User.create({
+        name,
+        email: normalizedEmail,
+        password,
+        phone: normalizedPhone,
+        address,
+        storeName,
+        city,
+        state,
+        pincode,
+        gstNumber,
+        isEmailVerified: false,
+        isPhoneVerified: false
+      });
+    } else {
+      user.name = name;
+      user.password = password;
+      user.phone = normalizedPhone;
+      user.address = address || '';
+      user.storeName = storeName || '';
+      user.city = city || '';
+      user.state = state || '';
+      user.pincode = pincode || '';
+      user.gstNumber = gstNumber || '';
+      user.isEmailVerified = false;
+      user.isPhoneVerified = false;
+      await user.save();
+    }
 
     const { emailOtp, phoneOtp } = await createAndStoreOtps(user);
     const smsResult = await sendOtps(user, emailOtp, phoneOtp);
