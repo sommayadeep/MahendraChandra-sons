@@ -13,13 +13,6 @@ const Navbar = () => {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const { cart } = useCart();
-  const normalizeEmail = (email) => (email || '').trim().toLowerCase().replace(/&/g, '@');
-  const ownerEmails = (process.env.NEXT_PUBLIC_OWNER_EMAILS || 'mahendrachandra.sons@gmail.com,mahendrachandra.sons&gmail.com')
-    .split(',')
-    .map((email) => normalizeEmail(email))
-    .filter(Boolean);
-  const isOwner =
-    !!user && ownerEmails.includes(normalizeEmail(user.email));
 
   useEffect(() => {
     const handleScroll = () => {
@@ -118,24 +111,6 @@ const Navbar = () => {
                     >
                       {user.role === 'admin' && (
                         <>
-                          {isOwner && (
-                            <Link
-                              href="/owner-basic"
-                              className="block px-4 py-3 text-sm text-gray-300 hover:bg-luxury-gray hover:text-gold-500 transition-colors"
-                              onClick={() => setUserMenuOpen(false)}
-                            >
-                              Owner Basic
-                            </Link>
-                          )}
-                          {isOwner && (
-                            <Link
-                              href="/owner"
-                              className="block px-4 py-3 text-sm text-gray-300 hover:bg-luxury-gray hover:text-gold-500 transition-colors"
-                              onClick={() => setUserMenuOpen(false)}
-                            >
-                              Owner Panel
-                            </Link>
-                          )}
                           <Link
                             href="/admin"
                             className="block px-4 py-3 text-sm text-gray-300 hover:bg-luxury-gray hover:text-gold-500 transition-colors"

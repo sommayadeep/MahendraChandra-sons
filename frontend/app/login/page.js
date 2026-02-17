@@ -27,7 +27,7 @@ const LoginPage = () => {
       const data = await login(formData.email, formData.password);
       toast.success('Welcome back!');
       if (data.user.role === 'admin') {
-        router.push('/owner-basic');
+        router.push('/admin');
       } else {
         router.push('/');
       }
