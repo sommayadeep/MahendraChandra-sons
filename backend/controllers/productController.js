@@ -3,6 +3,34 @@ const cloudinary = require('../config/cloudinary');
 const { Readable } = require('stream');
 
 const escapeRegExp = (value = '') => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const normalizeName = (value = '') => String(value).trim().replace(/\s+/g, ' ').toLowerCase();
+
+const buildDuplicateQuery = (payload = {}) => {
+  const normalizedName = normalizeName(payload.name);
+  if (!normalizedName || !payload.category) return null;
+  const normalizedPattern = escapeRegExp(normalizedName).replace(/\\ /g, '\\s+');
+  return {
+    category: payload.category,
+    name: { $regex: `^${normalizedPattern}$`, $options: 'i' }
+  };
+};
+
+const mergeIntoCanonicalProduct = async (products, payload) => {
+  const sorted = [...products].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  const canonical = sorted[0];
+  Object.assign(canonical, payload);
+  await canonical.save();
+
+  const duplicateIds = sorted
+    .filter((p) => !p._id.equals(canonical._id))
+    .map((p) => p._id);
+
+  if (duplicateIds.length > 0) {
+    await Product.deleteMany({ _id: { $in: duplicateIds } });
+  }
+
+  return { canonical, removedCount: duplicateIds.length };
+};
 
 const isRealEnvValue = (value) => {
   const v = String(value || '').trim().toLowerCase();
@@ -212,23 +240,22 @@ exports.createProduct = async (req, res) => {
       });
     }
 
-    const normalizedName = String(payload.name || '').trim();
-    const duplicateQuery = {
-      category: payload.category,
-      name: { $regex: `^${escapeRegExp(normalizedName)}$`, $options: 'i' }
-    };
+    const duplicateQuery = buildDuplicateQuery(payload);
+    const duplicateProducts = duplicateQuery
+      ? await Product.find(duplicateQuery).sort({ createdAt: 1 })
+      : [];
 
-    const existingProduct = await Product.findOne(duplicateQuery);
-    if (existingProduct) {
-      Object.assign(existingProduct, payload);
-      await existingProduct.save();
+    if (duplicateProducts.length > 0) {
+      const { canonical, removedCount } = await mergeIntoCanonicalProduct(duplicateProducts, payload);
 
       return res.json({
         success: true,
-        message: 'Existing product updated',
+        message: removedCount > 0
+          ? `Existing product updated and ${removedCount} duplicate(s) merged`
+          : 'Existing product updated',
         product: {
-          ...existingProduct.toObject(),
-          image: existingProduct.image || existingProduct.images?.[0] || ''
+          ...canonical.toObject(),
+          image: canonical.image || canonical.images?.[0] || ''
         }
       });
     }
@@ -262,17 +289,32 @@ exports.updateProduct = async (req, res) => {
       payload.images = [imageUrl];
     }
 
-    const product = await Product.findByIdAndUpdate(
-      req.params.id,
-      payload,
-      { new: true, runValidators: true, context: 'query' }
-    );
-
-    if (!product) {
+    const target = await Product.findById(req.params.id);
+    if (!target) {
       return res.status(404).json({
         success: false,
         message: 'Product not found'
       });
+    }
+
+    Object.assign(target, payload);
+    await target.save();
+
+    let product = target;
+    const duplicateQuery = buildDuplicateQuery({
+      name: target.name,
+      category: target.category
+    });
+
+    if (duplicateQuery) {
+      const duplicates = await Product.find({
+        ...duplicateQuery,
+        _id: { $ne: target._id }
+      });
+
+      if (duplicates.length > 0) {
+        await Product.deleteMany({ _id: { $in: duplicates.map((p) => p._id) } });
+      }
     }
 
     res.json({
