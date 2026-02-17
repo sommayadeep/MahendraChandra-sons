@@ -134,12 +134,6 @@ const OwnerPage = () => {
       const regularPrice = Number(formData.price);
       const salePriceNum = formData.salePrice === '' ? undefined : Number(formData.salePrice);
 
-      if (salePriceNum != null && salePriceNum > regularPrice) {
-        toast.error('Sale price cannot be greater than regular price');
-        setSaving(false);
-        return;
-      }
-
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim(),

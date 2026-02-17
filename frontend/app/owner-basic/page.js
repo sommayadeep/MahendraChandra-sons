@@ -78,11 +78,6 @@ export default function OwnerBasicPage() {
     const price = Number(form.price);
     const salePrice = form.salePrice === '' ? undefined : Number(form.salePrice);
 
-    if (salePrice != null && salePrice > price) {
-      setMessage('Sale price cannot be greater than regular price');
-      return;
-    }
-
     const payload = {
       name: form.name.trim(),
       description: form.description.trim(),

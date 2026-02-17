@@ -19,13 +19,7 @@ const productSchema = new mongoose.Schema({
   },
   salePrice: {
     type: Number,
-    min: [0, 'Sale price cannot be negative'],
-    validate: {
-      validator: function(value) {
-        return value == null || value <= this.price;
-      },
-      message: 'Sale price cannot be greater than regular price'
-    }
+    min: [0, 'Sale price cannot be negative']
   },
   category: {
     type: String,
