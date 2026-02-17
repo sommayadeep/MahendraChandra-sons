@@ -95,6 +95,8 @@ const ShopPage = () => {
   const [category, setCategory] = useState(categoryParam || 'all');
   const [sort, setSort] = useState('newest');
   const [search, setSearch] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [priceRange, setPriceRange] = useState('all');
   const [pagination, setPagination] = useState({ totalPages: 1, currentPage: 1 });
   const [showFilters, setShowFilters] = useState(false);
 
@@ -106,9 +108,17 @@ const ShopPage = () => {
     { name: 'Backpacks', slug: 'backpacks' },
   ];
 
+  const getPriceFilter = () => {
+    if (priceRange === 'under-1000') return { minPrice: 0, maxPrice: 1000 };
+    if (priceRange === '1000-5000') return { minPrice: 1000, maxPrice: 5000 };
+    if (priceRange === '5000-10000') return { minPrice: 5000, maxPrice: 10000 };
+    if (priceRange === 'above-10000') return { minPrice: 10000 };
+    return {};
+  };
+
   useEffect(() => {
     fetchProducts();
-  }, [category, sort, pagination.currentPage]);
+  }, [category, sort, pagination.currentPage, priceRange, searchTerm]);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -118,9 +128,19 @@ const ShopPage = () => {
         sort,
         page: pagination.currentPage,
         limit: 12,
+        search: searchTerm,
+        ...getPriceFilter(),
       };
       const res = await productsAPI.getAll(params);
-      setProducts(res.data.products);
+      const list = res.data.products || [];
+      const seen = new Set();
+      const deduped = list.filter((p) => {
+        const key = `${(p.name || '').trim().toLowerCase()}::${(p.category || '').toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setProducts(deduped);
       setPagination({
         totalPages: res.data.totalPages,
         currentPage: res.data.currentPage,
@@ -134,7 +154,8 @@ const ShopPage = () => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    // Implement search
+    setPagination((p) => ({ ...p, currentPage: 1 }));
+    setSearchTerm(search.trim());
   };
 
   return (
@@ -190,17 +211,45 @@ const ShopPage = () => {
               <div>
                 <h4 className="text-white text-sm uppercase tracking-wider mb-4">Price Range</h4>
                 <div className="space-y-2">
-                  <button className="block w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-white">
+                  <button
+                    onClick={() => { setPriceRange('under-1000'); setPagination((p) => ({ ...p, currentPage: 1 })); }}
+                    className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                      priceRange === 'under-1000' ? 'text-gold-500 bg-luxury-charcoal' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
                     Under ₹1,000
                   </button>
-                  <button className="block w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-white">
+                  <button
+                    onClick={() => { setPriceRange('1000-5000'); setPagination((p) => ({ ...p, currentPage: 1 })); }}
+                    className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                      priceRange === '1000-5000' ? 'text-gold-500 bg-luxury-charcoal' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
                     ₹1,000 - ₹5,000
                   </button>
-                  <button className="block w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-white">
+                  <button
+                    onClick={() => { setPriceRange('5000-10000'); setPagination((p) => ({ ...p, currentPage: 1 })); }}
+                    className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                      priceRange === '5000-10000' ? 'text-gold-500 bg-luxury-charcoal' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
                     ₹5,000 - ₹10,000
                   </button>
-                  <button className="block w-full text-left px-3 py-2 text-sm text-gray-400 hover:text-white">
+                  <button
+                    onClick={() => { setPriceRange('above-10000'); setPagination((p) => ({ ...p, currentPage: 1 })); }}
+                    className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                      priceRange === 'above-10000' ? 'text-gold-500 bg-luxury-charcoal' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
                     Above ₹10,000
+                  </button>
+                  <button
+                    onClick={() => { setPriceRange('all'); setPagination((p) => ({ ...p, currentPage: 1 })); }}
+                    className={`block w-full text-left px-3 py-2 text-sm transition-colors ${
+                      priceRange === 'all' ? 'text-gold-500 bg-luxury-charcoal' : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    All Prices
                   </button>
                 </div>
               </div>

@@ -101,12 +101,27 @@ const normalizeProductPayload = (body = {}) => {
   return payload;
 };
 
+const dedupeByNameCategory = (products = []) => {
+  const seen = new Set();
+  const result = [];
+
+  for (const product of products) {
+    const key = `${normalizeName(product.name)}::${String(product.category || '').toLowerCase()}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(product);
+    }
+  }
+
+  return result;
+};
+
 // @desc    Get all products
 // @route   GET /api/products
 // @access  Public
 exports.getProducts = async (req, res) => {
   try {
-    const { category, sort, search, page = 1, limit = 12 } = req.query;
+    const { category, sort, search, minPrice, maxPrice, page = 1, limit = 12 } = req.query;
 
     let query = {};
 
@@ -123,6 +138,14 @@ exports.getProducts = async (req, res) => {
       ];
     }
 
+    const min = minPrice !== undefined && minPrice !== '' ? Number(minPrice) : null;
+    const max = maxPrice !== undefined && maxPrice !== '' ? Number(maxPrice) : null;
+    if ((min !== null && !Number.isNaN(min)) || (max !== null && !Number.isNaN(max))) {
+      query.price = {};
+      if (min !== null && !Number.isNaN(min)) query.price.$gte = min;
+      if (max !== null && !Number.isNaN(max)) query.price.$lte = max;
+    }
+
     // Sort products
     let sortOption = { createdAt: -1 };
     if (sort === 'price-low') {
@@ -133,19 +156,17 @@ exports.getProducts = async (req, res) => {
       sortOption = { rating: -1 };
     }
 
-    // Pagination
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
+    // Pagination (applied after dedupe to avoid duplicate cards across pages)
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
     const skip = (pageNum - 1) * limitNum;
 
-    const products = await Product.find(query)
-      .sort(sortOption)
-      .skip(skip)
-      .limit(limitNum);
+    const allMatchedProducts = await Product.find(query).sort(sortOption);
+    const dedupedAllProducts = dedupeByNameCategory(allMatchedProducts);
+    const total = dedupedAllProducts.length;
+    const dedupedProducts = dedupedAllProducts.slice(skip, skip + limitNum);
 
-    const total = await Product.countDocuments(query);
-
-    const normalizedProducts = products.map((product) => ({
+    const normalizedProducts = dedupedProducts.map((product) => ({
       ...product.toObject(),
       image: product.image || product.images?.[0] || ''
     }));
