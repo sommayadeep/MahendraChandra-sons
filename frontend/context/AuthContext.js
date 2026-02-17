@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
       return persistSession(res.data);
     } catch (error) {
       const status = error?.response?.status;
-      if (status === 401 || status === 403) {
+      if (status === 401) {
         const adminRes = await authAPI.adminLogin({ email: normalizedEmail, password: normalizedPassword });
         return persistSession(adminRes.data);
       }
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (data) => {
     const res = await authAPI.register(data);
-    return persistSession(res.data);
+    return res.data;
   };
 
   const logout = () => {

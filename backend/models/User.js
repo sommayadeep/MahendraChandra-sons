@@ -58,6 +58,32 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  isEmailVerified: {
+    type: Boolean,
+    default: false
+  },
+  isPhoneVerified: {
+    type: Boolean,
+    default: false
+  },
+  emailOtpHash: {
+    type: String,
+    select: false,
+    default: ''
+  },
+  emailOtpExpires: {
+    type: Date,
+    select: false
+  },
+  phoneOtpHash: {
+    type: String,
+    select: false,
+    default: ''
+  },
+  phoneOtpExpires: {
+    type: Date,
+    select: false
+  },
   createdAt: {
     type: Date,
     default: Date.now

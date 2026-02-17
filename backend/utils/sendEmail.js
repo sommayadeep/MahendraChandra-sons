@@ -73,3 +73,28 @@ exports.sendContactEmail = async ({ name, email, phone, message }) => {
     `
   });
 };
+
+exports.sendVerificationOtpEmail = async ({ toEmail, otp, name }) => {
+  const transporter = getTransporter();
+  const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER;
+
+  await transporter.sendMail({
+    from: `"MC Sons Security" <${fromEmail}>`,
+    to: toEmail,
+    subject: 'Your verification OTP',
+    text: [
+      `Hi ${name || 'User'},`,
+      '',
+      `Your OTP is: ${otp}`,
+      'This OTP is valid for 10 minutes.',
+      '',
+      'If you did not request this, ignore this email.'
+    ].join('\n'),
+    html: `
+      <p>Hi ${name || 'User'},</p>
+      <p>Your OTP is: <strong>${otp}</strong></p>
+      <p>This OTP is valid for 10 minutes.</p>
+      <p>If you did not request this, ignore this email.</p>
+    `
+  });
+};

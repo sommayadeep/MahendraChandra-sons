@@ -4,6 +4,8 @@ const {
   registerUser, 
   loginUser, 
   loginAdminUser,
+  verifyUserOtps,
+  resendUserOtps,
   getUserProfile,
   updateUserProfile,
   deleteUserAccount
@@ -11,6 +13,8 @@ const {
 const { isAuthenticatedUser } = require('../middleware/auth');
 
 router.post('/register', registerUser);
+router.post('/verify-otp', verifyUserOtps);
+router.post('/resend-otp', resendUserOtps);
 router.post('/login', loginUser);
 router.post('/admin/login', loginAdminUser);
 router.get('/profile', isAuthenticatedUser, getUserProfile);
