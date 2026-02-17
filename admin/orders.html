@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Orders Portal</title>
+  <link rel="stylesheet" href="/admin/style.css" />
+</head>
+<body>
+  <h1>Orders Portal</h1>
+  <div class="top-actions">
+    <a class="small-input nav-link" href="/admin/dashboard.html">Back to Dashboard</a>
+    <button id="refreshBtn" class="small-input">Refresh Orders</button>
+    <button id="logoutBtn" class="small-input">Logout</button>
+  </div>
+  <p id="ordersMessage"></p>
+
+  <div class="card">
+    <h2>Order Management</h2>
+    <table id="ordersTable">
+      <thead>
+        <tr>
+          <th>Order ID</th>
+          <th>Customer</th>
+          <th>Phone</th>
+          <th>Address</th>
+          <th>Products</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Tracking ID</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="/admin/script.js"></script>
+</body>
+</html>

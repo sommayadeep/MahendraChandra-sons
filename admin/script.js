@@ -11,6 +11,8 @@
   }
 
   var API_BASE = (isLocalHost && savedApiBase ? savedApiBase : sameOriginApiBase).replace(/\/$/, '');
+  var PENDING_COUNT_KEY = 'admin_last_pending_count';
+  var RETURN_COUNT_KEY = 'admin_last_requested_returns_count';
 
   function getToken() {
     return localStorage.getItem('token');
@@ -34,6 +36,20 @@
     if (!el) return;
     el.textContent = text;
     el.className = ok ? 'success' : 'error';
+  }
+
+  function setAnyMessage(text, ok) {
+    if (document.getElementById('dashboardMessage')) {
+      setMessage('dashboardMessage', text, ok);
+      return;
+    }
+    if (document.getElementById('ordersMessage')) {
+      setMessage('ordersMessage', text, ok);
+      return;
+    }
+    if (document.getElementById('returnsMessage')) {
+      setMessage('returnsMessage', text, ok);
+    }
   }
 
   async function parseResponse(res) {
@@ -84,17 +100,48 @@
   function getOrderAddress(order) {
     if (order.shippingDetails) {
       var sd = order.shippingDetails;
-      var line1 = (sd.address || '-');
+      var line1 = sd.address || '-';
       var line2 = [sd.city, sd.pincode].filter(Boolean).join(' - ');
       return line2 ? line1 + ', ' + line2 : line1;
     }
     if (order.shippingAddress) {
       var sa = order.shippingAddress;
-      var l1 = (sa.address || '-');
+      var l1 = sa.address || '-';
       var l2 = [sa.city, sa.state, sa.pincode].filter(Boolean).join(', ');
       return l2 ? l1 + ', ' + l2 : l1;
     }
     return '-';
+  }
+
+  function ensureAuthenticatedPage() {
+    if (!getToken()) {
+      window.location.href = '/admin/login.html';
+      return false;
+    }
+    return true;
+  }
+
+  function bindLogoutButton() {
+    var logoutBtn = document.getElementById('logoutBtn');
+    if (!logoutBtn) return;
+    logoutBtn.addEventListener('click', function () {
+      localStorage.removeItem('token');
+      window.location.href = '/admin/login.html';
+    });
+  }
+
+  async function fetchOrdersData() {
+    return request('/orders', {
+      method: 'GET',
+      headers: jsonHeaders()
+    });
+  }
+
+  async function fetchReturnsData() {
+    return request('/orders/returns', {
+      method: 'GET',
+      headers: jsonHeaders()
+    });
   }
 
   async function loadProducts() {
@@ -123,11 +170,7 @@
     var tbody = document.querySelector('#ordersTable tbody');
     if (!tbody) return;
 
-    var data = await request('/orders', {
-      method: 'GET',
-      headers: jsonHeaders()
-    });
-
+    var data = await fetchOrdersData();
     tbody.innerHTML = '';
 
     (data.orders || []).forEach(function (o) {
@@ -170,10 +213,10 @@
             headers: jsonHeaders(),
             body: JSON.stringify({})
           });
-          setMessage('dashboardMessage', 'Order accepted', true);
+          setAnyMessage('Order accepted', true);
           await loadOrders();
         } catch (err) {
-          setMessage('dashboardMessage', err.message, false);
+          setAnyMessage(err.message, false);
         }
       };
 
@@ -190,10 +233,10 @@
             headers: jsonHeaders(),
             body: JSON.stringify({ trackingId: trackingInput.value.trim() })
           });
-          setMessage('dashboardMessage', 'Tracking added and status moved to shipped', true);
+          setAnyMessage('Tracking added and status moved to shipped', true);
           await loadOrders();
         } catch (err) {
-          setMessage('dashboardMessage', err.message, false);
+          setAnyMessage(err.message, false);
         }
       };
 
@@ -215,10 +258,10 @@
             headers: jsonHeaders(),
             body: JSON.stringify({ orderStatus: statusSelect.value })
           });
-          setMessage('dashboardMessage', 'Order status updated', true);
+          setAnyMessage('Order status updated', true);
           await loadOrders();
         } catch (err) {
-          setMessage('dashboardMessage', err.message, false);
+          setAnyMessage(err.message, false);
         }
       };
 
@@ -233,10 +276,10 @@
             method: 'DELETE',
             headers: jsonHeaders()
           });
-          setMessage('dashboardMessage', 'Order deleted', true);
+          setAnyMessage('Order deleted', true);
           await loadOrders();
         } catch (err) {
-          setMessage('dashboardMessage', err.message, false);
+          setAnyMessage(err.message, false);
         }
       };
 
@@ -256,12 +299,9 @@
     var tbody = document.querySelector('#returnsTable tbody');
     if (!tbody) return;
 
-    var data = await request('/orders/returns', {
-      method: 'GET',
-      headers: jsonHeaders()
-    });
-
+    var data = await fetchReturnsData();
     tbody.innerHTML = '';
+
     (data.requests || []).forEach(function (r) {
       var tr = document.createElement('tr');
       var refundMode = r.refundMode || '-';
@@ -272,6 +312,7 @@
         r.accountNumber ? 'A/C: ' + r.accountNumber : '',
         r.ifscCode ? 'IFSC: ' + r.ifscCode : ''
       ].filter(Boolean).join(' | ') || '-';
+
       tr.innerHTML =
         '<td>' + (r.requestId || '') + '</td>' +
         '<td>' + (r.orderId || '') + '</td>' +
@@ -305,10 +346,10 @@
             headers: jsonHeaders(),
             body: JSON.stringify({ status: statusSelect.value })
           });
-          setMessage('dashboardMessage', 'Return/Exchange status updated', true);
+          setAnyMessage('Return/Exchange status updated', true);
           await loadReturnExchangeRequests();
         } catch (err) {
-          setMessage('dashboardMessage', err.message, false);
+          setAnyMessage(err.message, false);
         }
       };
 
@@ -317,6 +358,60 @@
       tr.appendChild(actions);
       tbody.appendChild(tr);
     });
+  }
+
+  function maybeNotify(title, body) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      new Notification(title, { body: body });
+    }
+  }
+
+  async function updateDashboardCountsAndNotifications() {
+    var totalOrdersEl = document.getElementById('totalOrdersCount');
+    var pendingOrdersEl = document.getElementById('pendingOrdersCount');
+    var totalReturnsEl = document.getElementById('totalReturnsCount');
+    var requestedReturnsEl = document.getElementById('requestedReturnsCount');
+    var newItemsMessageEl = document.getElementById('newItemsMessage');
+
+    if (!totalOrdersEl || !pendingOrdersEl || !totalReturnsEl || !requestedReturnsEl) return;
+
+    var ordersData = await fetchOrdersData();
+    var returnsData = await fetchReturnsData();
+
+    var orders = ordersData.orders || [];
+    var returns = returnsData.requests || [];
+    var pendingOrders = orders.filter(function (o) { return o.orderStatus === 'Pending'; });
+    var requestedReturns = returns.filter(function (r) { return r.status === 'Requested'; });
+
+    totalOrdersEl.textContent = String(orders.length);
+    pendingOrdersEl.textContent = String(pendingOrders.length);
+    totalReturnsEl.textContent = String(returns.length);
+    requestedReturnsEl.textContent = String(requestedReturns.length);
+
+    var prevPending = Number(localStorage.getItem(PENDING_COUNT_KEY) || '0');
+    var prevRequested = Number(localStorage.getItem(RETURN_COUNT_KEY) || '0');
+
+    var pendingIncrease = Math.max(0, pendingOrders.length - prevPending);
+    var requestedIncrease = Math.max(0, requestedReturns.length - prevRequested);
+
+    localStorage.setItem(PENDING_COUNT_KEY, String(pendingOrders.length));
+    localStorage.setItem(RETURN_COUNT_KEY, String(requestedReturns.length));
+
+    var messages = [];
+    if (pendingIncrease > 0) {
+      messages.push(pendingIncrease + ' new pending order(s)');
+      maybeNotify('New Orders', pendingIncrease + ' new pending order(s) received.');
+    }
+    if (requestedIncrease > 0) {
+      messages.push(requestedIncrease + ' new return/exchange request(s)');
+      maybeNotify('New Returns/Exchanges', requestedIncrease + ' new return/exchange request(s) received.');
+    }
+
+    if (newItemsMessageEl) {
+      newItemsMessageEl.textContent = messages.length > 0 ? messages.join(' | ') : 'No new order/return alerts.';
+      newItemsMessageEl.className = messages.length > 0 ? 'success' : '';
+    }
   }
 
   function setupLoginPage() {
@@ -347,27 +442,37 @@
 
   function setupDashboardPage() {
     if (!document.getElementById('addProductForm')) return;
+    if (!ensureAuthenticatedPage()) return;
+    bindLogoutButton();
 
-    if (!getToken()) {
-      window.location.href = '/admin/login.html';
-      return;
+    var refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async function () {
+        try {
+          await loadProducts();
+          await updateDashboardCountsAndNotifications();
+          setMessage('dashboardMessage', 'Data refreshed', true);
+        } catch (err) {
+          setMessage('dashboardMessage', err.message, false);
+        }
+      });
     }
 
-    document.getElementById('logoutBtn').addEventListener('click', function () {
-      localStorage.removeItem('token');
-      window.location.href = '/admin/login.html';
-    });
-
-    document.getElementById('refreshBtn').addEventListener('click', async function () {
-      try {
-        await loadProducts();
-        await loadOrders();
-        await loadReturnExchangeRequests();
-        setMessage('dashboardMessage', 'Data refreshed', true);
-      } catch (err) {
-        setMessage('dashboardMessage', err.message, false);
-      }
-    });
+    var notificationsBtn = document.getElementById('enableNotificationsBtn');
+    if (notificationsBtn) {
+      notificationsBtn.addEventListener('click', async function () {
+        if (!('Notification' in window)) {
+          setMessage('dashboardMessage', 'Browser notifications are not supported', false);
+          return;
+        }
+        var permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          setMessage('dashboardMessage', 'Notifications enabled', true);
+        } else {
+          setMessage('dashboardMessage', 'Notifications blocked by browser', false);
+        }
+      });
+    }
 
     var cleanDuplicatesBtn = document.getElementById('cleanDuplicatesBtn');
     if (cleanDuplicatesBtn) {
@@ -463,14 +568,70 @@
     (async function init() {
       try {
         await loadProducts();
-        await loadOrders();
-        await loadReturnExchangeRequests();
+        await updateDashboardCountsAndNotifications();
+        setInterval(function () {
+          updateDashboardCountsAndNotifications().catch(function () {});
+        }, 30000);
       } catch (err) {
         setMessage('dashboardMessage', err.message, false);
       }
     })();
   }
 
+  function setupOrdersPage() {
+    if (!document.getElementById('ordersTable')) return;
+    if (!ensureAuthenticatedPage()) return;
+    bindLogoutButton();
+
+    var refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async function () {
+        try {
+          await loadOrders();
+          setMessage('ordersMessage', 'Orders refreshed', true);
+        } catch (err) {
+          setMessage('ordersMessage', err.message, false);
+        }
+      });
+    }
+
+    (async function init() {
+      try {
+        await loadOrders();
+      } catch (err) {
+        setMessage('ordersMessage', err.message, false);
+      }
+    })();
+  }
+
+  function setupReturnsPage() {
+    if (!document.getElementById('returnsTable')) return;
+    if (!ensureAuthenticatedPage()) return;
+    bindLogoutButton();
+
+    var refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', async function () {
+        try {
+          await loadReturnExchangeRequests();
+          setMessage('returnsMessage', 'Requests refreshed', true);
+        } catch (err) {
+          setMessage('returnsMessage', err.message, false);
+        }
+      });
+    }
+
+    (async function init() {
+      try {
+        await loadReturnExchangeRequests();
+      } catch (err) {
+        setMessage('returnsMessage', err.message, false);
+      }
+    })();
+  }
+
   setupLoginPage();
   setupDashboardPage();
+  setupOrdersPage();
+  setupReturnsPage();
 })();

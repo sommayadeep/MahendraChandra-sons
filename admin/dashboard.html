@@ -12,10 +12,38 @@
   <div class="top-actions">
     <button id="refreshBtn" class="small-input">Refresh Data</button>
     <button id="cleanDuplicatesBtn" class="small-input">Remove Duplicate Products</button>
+    <button id="enableNotificationsBtn" class="small-input">Enable Notifications</button>
     <button id="logoutBtn" class="small-input">Logout</button>
   </div>
 
   <p id="dashboardMessage"></p>
+
+  <div class="card">
+    <h2>Admin Portal</h2>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <p>Total Orders</p>
+        <strong id="totalOrdersCount">0</strong>
+      </div>
+      <div class="stat-box">
+        <p>Pending Orders</p>
+        <strong id="pendingOrdersCount">0</strong>
+      </div>
+      <div class="stat-box">
+        <p>Total Returns/Exchanges</p>
+        <strong id="totalReturnsCount">0</strong>
+      </div>
+      <div class="stat-box">
+        <p>Requested Returns/Exchanges</p>
+        <strong id="requestedReturnsCount">0</strong>
+      </div>
+    </div>
+    <div class="top-actions">
+      <a class="small-input nav-link" href="/admin/orders.html">Open Orders Portal</a>
+      <a class="small-input nav-link" href="/admin/returns.html">Open Return/Exchange Portal</a>
+    </div>
+    <p id="newItemsMessage"></p>
+  </div>
 
   <div class="card">
     <h2>1) Add Product</h2>
@@ -101,50 +129,6 @@
           <th>Price</th>
           <th>Sale Price</th>
           <th>Stock</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>5) Order Management</h2>
-    <table id="ordersTable">
-      <thead>
-        <tr>
-          <th>Order ID</th>
-          <th>Customer</th>
-          <th>Phone</th>
-          <th>Address</th>
-          <th>Products</th>
-          <th>Total</th>
-          <th>Status</th>
-          <th>Tracking ID</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </div>
-
-  <div class="card">
-    <h2>6) Return / Exchange Requests</h2>
-    <table id="returnsTable">
-      <thead>
-        <tr>
-          <th>Request ID</th>
-          <th>Order ID</th>
-          <th>Customer UID</th>
-          <th>Customer</th>
-          <th>Phone</th>
-          <th>Type</th>
-          <th>Reason</th>
-          <th>Refund Mode</th>
-          <th>UPI ID</th>
-          <th>Bank Details</th>
-          <th>Status</th>
-          <th>Created</th>
-          <th>Action</th>
         </tr>
       </thead>
       <tbody></tbody>
