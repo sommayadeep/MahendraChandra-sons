@@ -54,30 +54,21 @@ const OTP_WINDOW_MS = 10 * 60 * 1000;
 
 const createAndStoreOtps = async (user) => {
   const emailOtp = generateNumericOtp();
-  const phoneOtp = generateNumericOtp();
   const expiry = new Date(Date.now() + OTP_WINDOW_MS);
 
   user.emailOtpHash = hashOtp(emailOtp);
-  user.phoneOtpHash = hashOtp(phoneOtp);
   user.emailOtpExpires = expiry;
-  user.phoneOtpExpires = expiry;
   await user.save();
 
-  return { emailOtp, phoneOtp };
+  return { emailOtp };
 };
 
-const sendOtps = async (user, emailOtp, phoneOtp) => {
+const sendOtps = async (user, emailOtp) => {
   await sendVerificationOtpEmail({
     toEmail: user.email,
     otp: emailOtp,
     name: user.name
   });
-  const smsResult = await sendVerificationOtpSms({
-    phone: user.phone,
-    otp: phoneOtp
-  });
-
-  return smsResult;
 };
 
 const sendJsonError = (res, status, message) =>
@@ -91,13 +82,6 @@ exports.registerUser = async (req, res) => {
     const { name, email, password, phone, address, storeName, city, state, pincode, gstNumber } = req.body;
     const normalizedEmail = normalizeEmail(email);
     const normalizedPhone = normalizePhone(phone);
-
-    if (!normalizedPhone) {
-      return res.status(400).json({
-        success: false,
-        message: 'Phone number is required'
-      });
-    }
 
     // If user exists and is verified, block duplicate registration.
     // If user exists but unverified, refresh profile/password and continue OTP flow.
@@ -139,18 +123,18 @@ exports.registerUser = async (req, res) => {
       await user.save();
     }
 
-    const { emailOtp, phoneOtp } = await createAndStoreOtps(user);
-    const smsResult = await sendOtps(user, emailOtp, phoneOtp);
+    const { emailOtp } = await createAndStoreOtps(user);
+    await sendOtps(user, emailOtp);
 
     const response = {
       success: true,
-      message: 'Account created. Verify email OTP and phone OTP to continue.',
+      message: 'Account created. Verify email OTP to continue.',
       requiresVerification: true,
       email: user.email
     };
 
-    if (process.env.NODE_ENV !== 'production' && smsResult?.devOtp) {
-      response.devOtps = { emailOtp, phoneOtp };
+    if (process.env.NODE_ENV !== 'production') {
+      response.devOtps = { emailOtp };
     }
 
     res.status(201).json(response);
@@ -201,10 +185,10 @@ exports.loginUser = async (req, res) => {
       });
     }
 
-    if (user.role !== 'admin' && (!user.isEmailVerified || !user.isPhoneVerified)) {
+    if (user.role !== 'admin' && !user.isEmailVerified) {
       return res.status(403).json({
         success: false,
-        message: 'Please verify your email and phone number before login',
+        message: 'Please verify your email before login',
         code: 'VERIFICATION_REQUIRED'
       });
     }
@@ -229,18 +213,18 @@ exports.loginUser = async (req, res) => {
 // @access  Public
 exports.verifyUserOtps = async (req, res) => {
   try {
-    const { email, emailOtp, phoneOtp } = req.body;
+    const { email, emailOtp } = req.body;
     const normalizedEmail = normalizeEmail(email);
 
-    if (!normalizedEmail || !emailOtp || !phoneOtp) {
+    if (!normalizedEmail || !emailOtp) {
       return res.status(400).json({
         success: false,
-        message: 'Email OTP and phone OTP are required'
+        message: 'Email OTP is required'
       });
     }
 
     const user = await User.findOne({ email: normalizedEmail }).select(
-      '+emailOtpHash +emailOtpExpires +phoneOtpHash +phoneOtpExpires +password'
+      '+emailOtpHash +emailOtpExpires +password'
     );
 
     if (!user) {
@@ -256,13 +240,7 @@ exports.verifyUserOtps = async (req, res) => {
       user.emailOtpExpires &&
       user.emailOtpExpires.getTime() > now &&
       user.emailOtpHash === hashOtp(emailOtp);
-    const isPhoneValid =
-      user.phoneOtpHash &&
-      user.phoneOtpExpires &&
-      user.phoneOtpExpires.getTime() > now &&
-      user.phoneOtpHash === hashOtp(phoneOtp);
-
-    if (!isEmailValid || !isPhoneValid) {
+    if (!isEmailValid) {
       return res.status(400).json({
         success: false,
         message: 'Invalid or expired OTP'
@@ -270,11 +248,8 @@ exports.verifyUserOtps = async (req, res) => {
     }
 
     user.isEmailVerified = true;
-    user.isPhoneVerified = true;
     user.emailOtpHash = '';
-    user.phoneOtpHash = '';
     user.emailOtpExpires = undefined;
-    user.phoneOtpExpires = undefined;
     await user.save();
 
     const token = generateToken(user._id);
@@ -307,20 +282,20 @@ exports.resendUserOtps = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    if (user.isEmailVerified && user.isPhoneVerified) {
+    if (user.isEmailVerified) {
       return res.status(400).json({ success: false, message: 'User is already verified' });
     }
 
-    const { emailOtp, phoneOtp } = await createAndStoreOtps(user);
-    const smsResult = await sendOtps(user, emailOtp, phoneOtp);
+    const { emailOtp } = await createAndStoreOtps(user);
+    await sendOtps(user, emailOtp);
 
     const response = {
       success: true,
       message: 'OTP sent successfully'
     };
 
-    if (process.env.NODE_ENV !== 'production' && smsResult?.devOtp) {
-      response.devOtps = { emailOtp, phoneOtp };
+    if (process.env.NODE_ENV !== 'production') {
+      response.devOtps = { emailOtp };
     }
 
     return res.json(response);

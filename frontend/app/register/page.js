@@ -13,7 +13,7 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const [otpStep, setOtpStep] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState('');
-  const [otpData, setOtpData] = useState({ emailOtp: '', phoneOtp: '' });
+  const [otpData, setOtpData] = useState({ emailOtp: '' });
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -49,9 +49,9 @@ const RegisterPage = () => {
       });
       setRegisteredEmail(data.email || formData.email);
       setOtpStep(true);
-      toast.success('Account created. Enter email and phone OTP.');
+      toast.success('Account created. Enter email OTP.');
       if (data?.devOtps) {
-        toast.success(`Dev OTPs - Email: ${data.devOtps.emailOtp}, Phone: ${data.devOtps.phoneOtp}`);
+        toast.success(`Dev OTP - Email: ${data.devOtps.emailOtp}`);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Registration failed');
@@ -66,8 +66,7 @@ const RegisterPage = () => {
     try {
       const res = await authAPI.verifyOtp({
         email: registeredEmail,
-        emailOtp: otpData.emailOtp.trim(),
-        phoneOtp: otpData.phoneOtp.trim()
+        emailOtp: otpData.emailOtp.trim()
       });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
@@ -86,7 +85,7 @@ const RegisterPage = () => {
       const res = await authAPI.resendOtp({ email: registeredEmail });
       toast.success('OTP resent');
       if (res?.data?.devOtps) {
-        toast.success(`Dev OTPs - Email: ${res.data.devOtps.emailOtp}, Phone: ${res.data.devOtps.phoneOtp}`);
+        toast.success(`Dev OTP - Email: ${res.data.devOtps.emailOtp}`);
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to resend OTP');
@@ -190,7 +189,7 @@ const RegisterPage = () => {
           ) : (
             <form onSubmit={handleVerifyOtp} className="space-y-5">
               <p className="text-gray-400 text-sm">
-                OTP sent to <span className="text-gold-500">{registeredEmail}</span> and registered phone number.
+                OTP sent to <span className="text-gold-500">{registeredEmail}</span>.
               </p>
               <div>
                 <label className="block text-gray-400 text-sm mb-2">Email OTP *</label>
@@ -202,18 +201,6 @@ const RegisterPage = () => {
                   required
                   className="input-field"
                   placeholder="6-digit email OTP"
-                />
-              </div>
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">Phone OTP *</label>
-                <input
-                  type="text"
-                  name="phoneOtp"
-                  value={otpData.phoneOtp}
-                  onChange={handleOtpChange}
-                  required
-                  className="input-field"
-                  placeholder="6-digit phone OTP"
                 />
               </div>
               <button

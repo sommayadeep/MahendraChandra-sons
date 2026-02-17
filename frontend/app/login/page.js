@@ -9,11 +9,9 @@ import Script from 'next/script';
 
 const LoginPage = () => {
   const router = useRouter();
-  const { login, loginWithGoogle, sendPhoneOtpForLogin, verifyPhoneOtpForLogin } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState('password');
-  const [phoneData, setPhoneData] = useState({ phone: '', otp: '' });
-  const [otpSent, setOtpSent] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,10 +19,6 @@ const LoginPage = () => {
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handlePhoneChange = (e) => {
-    setPhoneData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const routeAfterLogin = (user) => {
@@ -88,40 +82,6 @@ const LoginPage = () => {
     tokenClient.requestAccessToken({ prompt: 'select_account' });
   };
 
-  const handleSendPhoneOtp = async () => {
-    if (!phoneData.phone.trim()) {
-      toast.error('Enter phone number');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await sendPhoneOtpForLogin(phoneData.phone.trim());
-      setOtpSent(true);
-      toast.success('OTP sent to phone');
-      if (res?.devOtp) {
-        toast.success(`Dev OTP: ${res.devOtp}`);
-      }
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to send OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyPhoneOtp = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const data = await verifyPhoneOtpForLogin(phoneData.phone.trim(), phoneData.otp.trim());
-      toast.success('Phone login successful');
-      routeAfterLogin(data.user);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'OTP verification failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   return (
     <div className="pt-24 pb-20 min-h-screen flex items-center">
       <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
@@ -141,10 +101,9 @@ const LoginPage = () => {
             <p className="text-gray-400">Sign in to your account</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-2 mb-6">
+          <div className="grid grid-cols-2 gap-2 mb-6">
             <button type="button" onClick={() => setMode('password')} className={`py-2 text-sm border ${mode === 'password' ? 'border-gold-500 text-gold-500' : 'border-gray-700 text-gray-300'}`}>Password</button>
             <button type="button" onClick={() => setMode('google')} className={`py-2 text-sm border ${mode === 'google' ? 'border-gold-500 text-gold-500' : 'border-gray-700 text-gray-300'}`}>Google</button>
-            <button type="button" onClick={() => setMode('phone')} className={`py-2 text-sm border ${mode === 'phone' ? 'border-gold-500 text-gold-500' : 'border-gray-700 text-gray-300'}`}>Phone OTP</button>
           </div>
 
           {mode === 'password' && (
@@ -197,46 +156,6 @@ const LoginPage = () => {
                 {loading ? 'Opening Google...' : 'Continue with Google'}
               </button>
             </div>
-          )}
-
-          {mode === 'phone' && (
-            <form onSubmit={handleVerifyPhoneOtp} className="space-y-4">
-              <div>
-                <label className="block text-gray-400 text-sm mb-2">Phone Number</label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={phoneData.phone}
-                  onChange={handlePhoneChange}
-                  required
-                  className="input-field"
-                  placeholder="+91xxxxxxxxxx"
-                />
-              </div>
-              {otpSent && (
-                <div>
-                  <label className="block text-gray-400 text-sm mb-2">OTP</label>
-                  <input
-                    type="text"
-                    name="otp"
-                    value={phoneData.otp}
-                    onChange={handlePhoneChange}
-                    required
-                    className="input-field"
-                    placeholder="6-digit OTP"
-                  />
-                </div>
-              )}
-              {!otpSent ? (
-                <button type="button" onClick={handleSendPhoneOtp} disabled={loading} className="w-full btn-primary disabled:opacity-50">
-                  {loading ? 'Sending OTP...' : 'Send OTP'}
-                </button>
-              ) : (
-                <button type="submit" disabled={loading} className="w-full btn-primary disabled:opacity-50">
-                  {loading ? 'Verifying...' : 'Verify OTP & Login'}
-                </button>
-              )}
-            </form>
           )}
 
           <div className="mt-6 text-center">
