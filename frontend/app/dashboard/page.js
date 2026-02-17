@@ -101,6 +101,9 @@ const DashboardPage = () => {
         accountNumber: '',
         ifscCode: '',
         bankName: '',
+        requestedProductName: '',
+        requestedColor: '',
+        requestedProductPrice: '',
         ...(prev[orderId] || {}),
         [field]: value
       }
@@ -114,12 +117,15 @@ const DashboardPage = () => {
       await ordersAPI.requestReturnExchange(orderId, {
         requestType: form.requestType || 'Return',
         reason: form.reason || '',
-        refundMode: form.refundMode || 'UPI',
-        upiId: form.refundMode === 'UPI' ? (form.upiId || '') : '',
-        accountHolderName: form.refundMode === 'Bank' ? (form.accountHolderName || '') : '',
-        accountNumber: form.refundMode === 'Bank' ? (form.accountNumber || '') : '',
-        ifscCode: form.refundMode === 'Bank' ? (form.ifscCode || '') : '',
-        bankName: form.refundMode === 'Bank' ? (form.bankName || '') : ''
+        refundMode: form.requestType === 'Return' ? (form.refundMode || 'UPI') : undefined,
+        upiId: form.requestType === 'Return' && form.refundMode === 'UPI' ? (form.upiId || '') : '',
+        accountHolderName: form.requestType === 'Return' && form.refundMode === 'Bank' ? (form.accountHolderName || '') : '',
+        accountNumber: form.requestType === 'Return' && form.refundMode === 'Bank' ? (form.accountNumber || '') : '',
+        ifscCode: form.requestType === 'Return' && form.refundMode === 'Bank' ? (form.ifscCode || '') : '',
+        bankName: form.requestType === 'Return' && form.refundMode === 'Bank' ? (form.bankName || '') : '',
+        requestedProductName: form.requestType === 'Exchange' ? (form.requestedProductName || '') : '',
+        requestedColor: form.requestType === 'Exchange' ? (form.requestedColor || '') : '',
+        requestedProductPrice: form.requestType === 'Exchange' ? Number(form.requestedProductPrice || 0) : 0
       });
       toast.success('Request submitted');
       await fetchOrders();
@@ -379,6 +385,7 @@ const DashboardPage = () => {
                                 value={(requestForms[order._id] || {}).refundMode || 'UPI'}
                                 onChange={(e) => updateRequestForm(order._id, 'refundMode', e.target.value)}
                                 className="input-field"
+                                style={{ display: ((requestForms[order._id] || {}).requestType || 'Return') === 'Return' ? 'block' : 'none' }}
                                 disabled={
                                   requestingOrderId === order._id ||
                                   ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
@@ -398,7 +405,7 @@ const DashboardPage = () => {
                                   ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
                                 }
                               />
-                              {((requestForms[order._id] || {}).refundMode || 'UPI') === 'UPI' ? (
+                              {((requestForms[order._id] || {}).requestType || 'Return') === 'Return' && (((requestForms[order._id] || {}).refundMode || 'UPI') === 'UPI') ? (
                                 <input
                                   value={(requestForms[order._id] || {}).upiId || ''}
                                   onChange={(e) => updateRequestForm(order._id, 'upiId', e.target.value)}
@@ -409,7 +416,7 @@ const DashboardPage = () => {
                                     ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
                                   }
                                 />
-                              ) : (
+                              ) : ((requestForms[order._id] || {}).requestType || 'Return') === 'Return' ? (
                                 <>
                                   <input
                                     value={(requestForms[order._id] || {}).accountHolderName || ''}
@@ -446,6 +453,42 @@ const DashboardPage = () => {
                                     onChange={(e) => updateRequestForm(order._id, 'ifscCode', e.target.value)}
                                     className="input-field"
                                     placeholder="IFSC Code"
+                                    disabled={
+                                      requestingOrderId === order._id ||
+                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                    }
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <input
+                                    value={(requestForms[order._id] || {}).requestedProductName || ''}
+                                    onChange={(e) => updateRequestForm(order._id, 'requestedProductName', e.target.value)}
+                                    className="input-field"
+                                    placeholder="Desired Product Name"
+                                    disabled={
+                                      requestingOrderId === order._id ||
+                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                    }
+                                  />
+                                  <input
+                                    value={(requestForms[order._id] || {}).requestedColor || ''}
+                                    onChange={(e) => updateRequestForm(order._id, 'requestedColor', e.target.value)}
+                                    className="input-field"
+                                    placeholder="Desired Color"
+                                    disabled={
+                                      requestingOrderId === order._id ||
+                                      ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)
+                                    }
+                                  />
+                                  <input
+                                    value={(requestForms[order._id] || {}).requestedProductPrice || ''}
+                                    onChange={(e) => updateRequestForm(order._id, 'requestedProductPrice', e.target.value)}
+                                    className="input-field md:col-span-2"
+                                    placeholder="Desired Product Price (must be greater than previous order)"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
                                     disabled={
                                       requestingOrderId === order._id ||
                                       ['Requested', 'Approved'].includes((getLatestReturnExchangeRequest(order) || {}).status)

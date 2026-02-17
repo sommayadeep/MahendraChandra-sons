@@ -496,7 +496,10 @@ exports.requestReturnOrExchange = async (req, res) => {
       accountHolderName,
       accountNumber,
       ifscCode,
-      bankName
+      bankName,
+      requestedProductName,
+      requestedColor,
+      requestedProductPrice
     } = req.body;
     if (!['Return', 'Exchange'].includes(requestType)) {
       return res.status(400).json({ success: false, message: 'Invalid request type' });
@@ -528,38 +531,85 @@ exports.requestReturnOrExchange = async (req, res) => {
       });
     }
 
-    const mode = ['UPI', 'Bank'].includes(refundMode) ? refundMode : 'UPI';
-    const cleanedUpiId = String(upiId || '').trim();
-    const cleanedAccountHolderName = String(accountHolderName || '').trim();
-    const cleanedAccountNumber = String(accountNumber || '').trim();
-    const cleanedIfscCode = String(ifscCode || '').trim().toUpperCase();
-    const cleanedBankName = String(bankName || '').trim();
-
-    if (mode === 'UPI' && !cleanedUpiId) {
-      return res.status(400).json({
-        success: false,
-        message: 'UPI ID is required'
-      });
-    }
-
-    if (
-      mode === 'Bank' &&
-      (!cleanedAccountHolderName || !cleanedAccountNumber || !cleanedIfscCode || !cleanedBankName)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message: 'Complete bank details are required'
-      });
-    }
-
-    const refundDetails = {
-      refundMode: mode,
-      upiId: mode === 'UPI' ? cleanedUpiId : '',
-      accountHolderName: mode === 'Bank' ? cleanedAccountHolderName : '',
-      accountNumber: mode === 'Bank' ? cleanedAccountNumber : '',
-      ifscCode: mode === 'Bank' ? cleanedIfscCode : '',
-      bankName: mode === 'Bank' ? cleanedBankName : ''
+    var refundDetails = {
+      refundMode: 'UPI',
+      upiId: '',
+      accountHolderName: '',
+      accountNumber: '',
+      ifscCode: '',
+      bankName: ''
     };
+    var exchangeDetails = {
+      requestedProductName: '',
+      requestedColor: '',
+      requestedProductPrice: 0,
+      previousOrderAmount: Number(order.totalAmount || order.totalPrice || 0),
+      extraPayable: 0
+    };
+
+    if (requestType === 'Return') {
+      const mode = ['UPI', 'Bank'].includes(refundMode) ? refundMode : 'UPI';
+      const cleanedUpiId = String(upiId || '').trim();
+      const cleanedAccountHolderName = String(accountHolderName || '').trim();
+      const cleanedAccountNumber = String(accountNumber || '').trim();
+      const cleanedIfscCode = String(ifscCode || '').trim().toUpperCase();
+      const cleanedBankName = String(bankName || '').trim();
+
+      if (mode === 'UPI' && !cleanedUpiId) {
+        return res.status(400).json({
+          success: false,
+          message: 'UPI ID is required'
+        });
+      }
+
+      if (
+        mode === 'Bank' &&
+        (!cleanedAccountHolderName || !cleanedAccountNumber || !cleanedIfscCode || !cleanedBankName)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message: 'Complete bank details are required'
+        });
+      }
+
+      refundDetails = {
+        refundMode: mode,
+        upiId: mode === 'UPI' ? cleanedUpiId : '',
+        accountHolderName: mode === 'Bank' ? cleanedAccountHolderName : '',
+        accountNumber: mode === 'Bank' ? cleanedAccountNumber : '',
+        ifscCode: mode === 'Bank' ? cleanedIfscCode : '',
+        bankName: mode === 'Bank' ? cleanedBankName : ''
+      };
+    }
+
+    if (requestType === 'Exchange') {
+      const productName = String(requestedProductName || '').trim();
+      const color = String(requestedColor || '').trim();
+      const targetPrice = Number(requestedProductPrice || 0);
+      const previousAmount = Number(order.totalAmount || order.totalPrice || 0);
+
+      if (!productName) {
+        return res.status(400).json({
+          success: false,
+          message: 'Requested product name is required for exchange'
+        });
+      }
+
+      if (targetPrice <= previousAmount) {
+        return res.status(400).json({
+          success: false,
+          message: 'Exchange product price must be greater than your previous order amount'
+        });
+      }
+
+      exchangeDetails = {
+        requestedProductName: productName,
+        requestedColor: color,
+        requestedProductPrice: targetPrice,
+        previousOrderAmount: previousAmount,
+        extraPayable: Math.max(0, targetPrice - previousAmount)
+      };
+    }
 
     order.returnExchangeRequests.push({
       requestType,
@@ -567,6 +617,7 @@ exports.requestReturnOrExchange = async (req, res) => {
       status: 'Requested',
       customerUid: req.user.id,
       refundDetails,
+      exchangeDetails,
       createdAt: new Date(),
       updatedAt: new Date()
     });
@@ -609,6 +660,11 @@ exports.getReturnExchangeRequests = async (req, res) => {
           accountNumber: item.refundDetails?.accountNumber || '',
           ifscCode: item.refundDetails?.ifscCode || '',
           bankName: item.refundDetails?.bankName || '',
+          requestedProductName: item.exchangeDetails?.requestedProductName || '',
+          requestedColor: item.exchangeDetails?.requestedColor || '',
+          requestedProductPrice: item.exchangeDetails?.requestedProductPrice || 0,
+          previousOrderAmount: item.exchangeDetails?.previousOrderAmount || 0,
+          extraPayable: item.exchangeDetails?.extraPayable || 0,
           status: item.status,
           createdAt: item.createdAt,
           updatedAt: item.updatedAt

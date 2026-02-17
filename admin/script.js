@@ -340,6 +340,10 @@
         r.accountNumber ? 'A/C: ' + r.accountNumber : '',
         r.ifscCode ? 'IFSC: ' + r.ifscCode : ''
       ].filter(Boolean).join(' | ') || '-';
+      var desiredProduct = r.requestedProductName || '-';
+      var desiredColor = r.requestedColor || '-';
+      var desiredPrice = r.requestedProductPrice ? formatMoney(r.requestedProductPrice) : '-';
+      var extraPayable = r.extraPayable ? formatMoney(r.extraPayable) : '-';
 
       tr.innerHTML =
         '<td>' + (r.requestId || '') + '</td>' +
@@ -349,6 +353,10 @@
         '<td>' + (r.customerPhone || '-') + '</td>' +
         '<td>' + (r.requestType || '-') + '</td>' +
         '<td>' + (r.reason || '-') + '</td>' +
+        '<td>' + desiredProduct + '</td>' +
+        '<td>' + desiredColor + '</td>' +
+        '<td>' + desiredPrice + '</td>' +
+        '<td>' + extraPayable + '</td>' +
         '<td>' + refundMode + '</td>' +
         '<td>' + upiId + '</td>' +
         '<td>' + bankDetails + '</td>' +

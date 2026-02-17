@@ -153,6 +153,28 @@ const orderSchema = new mongoose.Schema({
         default: ''
       }
     },
+    exchangeDetails: {
+      requestedProductName: {
+        type: String,
+        default: ''
+      },
+      requestedColor: {
+        type: String,
+        default: ''
+      },
+      requestedProductPrice: {
+        type: Number,
+        default: 0
+      },
+      previousOrderAmount: {
+        type: Number,
+        default: 0
+      },
+      extraPayable: {
+        type: Number,
+        default: 0
+      }
+    },
     createdAt: {
       type: Date,
       default: Date.now
