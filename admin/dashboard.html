@@ -9,6 +9,21 @@
 <body>
   <h1>Mahendra Chandra & Sons - Owner/Admin Panel</h1>
 
+  <div class="quick-access-grid">
+    <a class="quick-box" href="#productsSection">
+      <h3>Products</h3>
+      <p>Add, update, delete products</p>
+    </a>
+    <a class="quick-box" href="/admin/orders.html">
+      <h3>Orders Portal</h3>
+      <p>Manage all customer orders</p>
+    </a>
+    <a class="quick-box" href="/admin/returns.html">
+      <h3>Return/Exchange Portal</h3>
+      <p>Handle return and exchange requests</p>
+    </a>
+  </div>
+
   <div class="top-actions">
     <button id="refreshBtn" class="small-input">Refresh Data</button>
     <button id="cleanDuplicatesBtn" class="small-input">Remove Duplicate Products</button>
@@ -18,7 +33,7 @@
 
   <p id="dashboardMessage"></p>
 
-  <div class="card">
+  <div class="card" id="productsSection">
     <h2>Admin Portal</h2>
     <div class="stats-grid">
       <div class="stat-box">
