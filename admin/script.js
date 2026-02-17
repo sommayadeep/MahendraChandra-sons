@@ -1,8 +1,7 @@
 (function () {
   var API_BASE = (
-    window.location.origin.indexOf('localhost:5001') !== -1
-      ? window.location.origin + '/api'
-      : 'http://localhost:5001/api'
+    localStorage.getItem('admin_api_base') ||
+    window.location.origin + '/api'
   ).replace(/\/$/, '');
 
   function getToken() {
