@@ -60,6 +60,21 @@ export const AuthProvider = ({ children }) => {
     return res.data;
   };
 
+  const loginWithGoogle = async (accessToken) => {
+    const res = await authAPI.googleLogin({ accessToken });
+    return persistSession(res.data);
+  };
+
+  const sendPhoneOtpForLogin = async (phone) => {
+    const res = await authAPI.sendPhoneLoginOtp({ phone });
+    return res.data;
+  };
+
+  const verifyPhoneOtpForLogin = async (phone, otp) => {
+    const res = await authAPI.verifyPhoneLoginOtp({ phone, otp });
+    return persistSession(res.data);
+  };
+
   const logout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -73,7 +88,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      register,
+      loginWithGoogle,
+      sendPhoneOtpForLogin,
+      verifyPhoneOtpForLogin,
+      logout,
+      updateUser
+    }}>
       {children}
     </AuthContext.Provider>
   );

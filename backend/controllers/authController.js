@@ -27,6 +27,11 @@ const normalizeEmail = (email) =>
     .trim()
     .toLowerCase()
     .replace(/&/g, '@');
+const normalizePhone = (phone) =>
+  String(phone || '')
+    .replace(/\s+/g, '')
+    .replace(/^\+91/, '')
+    .replace(/[^\d]/g, '');
 
 const getOwnerPasswordCandidates = () =>
   [
@@ -75,6 +80,9 @@ const sendOtps = async (user, emailOtp, phoneOtp) => {
   return smsResult;
 };
 
+const sendJsonError = (res, status, message) =>
+  res.status(status).json({ success: false, message });
+
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
@@ -82,7 +90,7 @@ exports.registerUser = async (req, res) => {
   try {
     const { name, email, password, phone, address, storeName, city, state, pincode, gstNumber } = req.body;
     const normalizedEmail = normalizeEmail(email);
-    const normalizedPhone = String(phone || '').trim();
+    const normalizedPhone = normalizePhone(phone);
 
     if (!normalizedPhone) {
       return res.status(400).json({
@@ -106,7 +114,7 @@ exports.registerUser = async (req, res) => {
         name,
         email: normalizedEmail,
         password,
-        phone: normalizedPhone,
+      phone: normalizedPhone,
         address,
         storeName,
         city,
@@ -434,7 +442,7 @@ exports.updateUserProfile = async (req, res) => {
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { name, phone, address, storeName, city, state, pincode, gstNumber },
+      { name, phone: normalizePhone(phone), address, storeName, city, state, pincode, gstNumber },
       { new: true, runValidators: true }
     );
 
@@ -447,6 +455,133 @@ exports.updateUserProfile = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+// @desc    Login with Google popup token
+// @route   POST /api/auth/google-login
+// @access  Public
+exports.googleLogin = async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      return sendJsonError(res, 400, 'Google access token is required');
+    }
+
+    const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    if (!response.ok) {
+      return sendJsonError(res, 401, 'Invalid Google token');
+    }
+
+    const googleUser = await response.json();
+    const normalizedEmail = normalizeEmail(googleUser.email);
+
+    if (!normalizedEmail || googleUser.email_verified !== true) {
+      return sendJsonError(res, 401, 'Google email is not verified');
+    }
+
+    let user = await User.findOne({ email: normalizedEmail });
+    if (!user) {
+      const randomPassword = crypto.randomBytes(24).toString('hex');
+      user = await User.create({
+        name: googleUser.name || 'Google User',
+        email: normalizedEmail,
+        password: randomPassword,
+        role: 'user',
+        phone: '',
+        isEmailVerified: true,
+        isPhoneVerified: false
+      });
+    } else if (!user.isEmailVerified) {
+      user.isEmailVerified = true;
+      await user.save();
+    }
+
+    const token = generateToken(user._id);
+    return res.json({
+      success: true,
+      token,
+      user: formatUser(user)
+    });
+  } catch (error) {
+    return sendJsonError(res, 500, error.message);
+  }
+};
+
+// @desc    Send OTP for phone login
+// @route   POST /api/auth/login-phone/send-otp
+// @access  Public
+exports.sendPhoneLoginOtp = async (req, res) => {
+  try {
+    const phone = normalizePhone(req.body.phone);
+    if (!phone) {
+      return sendJsonError(res, 400, 'Phone number is required');
+    }
+
+    const user = await User.findOne({ phone }).select('+phoneLoginOtpHash +phoneLoginOtpExpires');
+    if (!user) {
+      return sendJsonError(res, 404, 'No account found with this phone number');
+    }
+
+    const phoneOtp = generateNumericOtp();
+    user.phoneLoginOtpHash = hashOtp(phoneOtp);
+    user.phoneLoginOtpExpires = new Date(Date.now() + OTP_WINDOW_MS);
+    await user.save();
+
+    const smsResult = await sendVerificationOtpSms({ phone, otp: phoneOtp });
+    const response = { success: true, message: 'Phone OTP sent' };
+    if (process.env.NODE_ENV !== 'production' && smsResult?.devOtp) {
+      response.devOtp = phoneOtp;
+    }
+
+    return res.json(response);
+  } catch (error) {
+    return sendJsonError(res, 500, error.message);
+  }
+};
+
+// @desc    Verify OTP for phone login
+// @route   POST /api/auth/login-phone/verify-otp
+// @access  Public
+exports.verifyPhoneLoginOtp = async (req, res) => {
+  try {
+    const phone = normalizePhone(req.body.phone);
+    const otp = String(req.body.otp || '').trim();
+    if (!phone || !otp) {
+      return sendJsonError(res, 400, 'Phone and OTP are required');
+    }
+
+    const user = await User.findOne({ phone }).select('+phoneLoginOtpHash +phoneLoginOtpExpires');
+    if (!user) {
+      return sendJsonError(res, 404, 'No account found with this phone number');
+    }
+
+    const isValid =
+      user.phoneLoginOtpHash &&
+      user.phoneLoginOtpExpires &&
+      user.phoneLoginOtpExpires.getTime() > Date.now() &&
+      user.phoneLoginOtpHash === hashOtp(otp);
+
+    if (!isValid) {
+      return sendJsonError(res, 400, 'Invalid or expired OTP');
+    }
+
+    user.phoneLoginOtpHash = '';
+    user.phoneLoginOtpExpires = undefined;
+    user.isPhoneVerified = true;
+    await user.save();
+
+    const token = generateToken(user._id);
+    return res.json({
+      success: true,
+      token,
+      user: formatUser(user)
+    });
+  } catch (error) {
+    return sendJsonError(res, 500, error.message);
   }
 };
 

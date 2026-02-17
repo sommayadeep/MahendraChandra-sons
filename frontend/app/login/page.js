@@ -5,11 +5,15 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
+import Script from 'next/script';
 
 const LoginPage = () => {
   const router = useRouter();
-  const { login } = useAuth();
+  const { login, loginWithGoogle, sendPhoneOtpForLogin, verifyPhoneOtpForLogin } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState('password');
+  const [phoneData, setPhoneData] = useState({ phone: '', otp: '' });
+  const [otpSent, setOtpSent] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -19,6 +23,18 @@ const LoginPage = () => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  const handlePhoneChange = (e) => {
+    setPhoneData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const routeAfterLogin = (user) => {
+    if (user.role === 'admin') {
+      router.push('/admin');
+    } else {
+      router.push('/');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -26,11 +42,7 @@ const LoginPage = () => {
     try {
       const data = await login(formData.email, formData.password);
       toast.success('Welcome back!');
-      if (data.user.role === 'admin') {
-        router.push('/admin');
-      } else {
-        router.push('/');
-      }
+      routeAfterLogin(data.user);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Login failed');
     } finally {
@@ -38,8 +50,81 @@ const LoginPage = () => {
     }
   };
 
+  const handleGoogleLogin = async () => {
+    const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (!googleClientId) {
+      toast.error('Google login is not configured');
+      return;
+    }
+
+    if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+      toast.error('Google login SDK not loaded');
+      return;
+    }
+
+    setLoading(true);
+    const tokenClient = window.google.accounts.oauth2.initTokenClient({
+      client_id: googleClientId,
+      scope: 'openid email profile',
+      callback: async (response) => {
+        if (response.error || !response.access_token) {
+          toast.error('Google login failed');
+          setLoading(false);
+          return;
+        }
+
+        try {
+          const data = await loginWithGoogle(response.access_token);
+          toast.success('Logged in with Google');
+          routeAfterLogin(data.user);
+        } catch (error) {
+          toast.error(error.response?.data?.message || 'Google login failed');
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
+
+    tokenClient.requestAccessToken({ prompt: 'select_account' });
+  };
+
+  const handleSendPhoneOtp = async () => {
+    if (!phoneData.phone.trim()) {
+      toast.error('Enter phone number');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await sendPhoneOtpForLogin(phoneData.phone.trim());
+      setOtpSent(true);
+      toast.success('OTP sent to phone');
+      if (res?.devOtp) {
+        toast.success(`Dev OTP: ${res.devOtp}`);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = await verifyPhoneOtpForLogin(phoneData.phone.trim(), phoneData.otp.trim());
+      toast.success('Phone login successful');
+      routeAfterLogin(data.user);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'OTP verification failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="pt-24 pb-20 min-h-screen flex items-center">
+      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
       <div className="max-w-md mx-auto px-4 sm:px-6 w-full">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -56,6 +141,13 @@ const LoginPage = () => {
             <p className="text-gray-400">Sign in to your account</p>
           </div>
 
+          <div className="grid grid-cols-3 gap-2 mb-6">
+            <button type="button" onClick={() => setMode('password')} className={`py-2 text-sm border ${mode === 'password' ? 'border-gold-500 text-gold-500' : 'border-gray-700 text-gray-300'}`}>Password</button>
+            <button type="button" onClick={() => setMode('google')} className={`py-2 text-sm border ${mode === 'google' ? 'border-gold-500 text-gold-500' : 'border-gray-700 text-gray-300'}`}>Google</button>
+            <button type="button" onClick={() => setMode('phone')} className={`py-2 text-sm border ${mode === 'phone' ? 'border-gold-500 text-gold-500' : 'border-gray-700 text-gray-300'}`}>Phone OTP</button>
+          </div>
+
+          {mode === 'password' && (
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-gray-400 text-sm mb-2">Email Address</label>
@@ -91,6 +183,61 @@ const LoginPage = () => {
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
+          )}
+
+          {mode === 'google' && (
+            <div className="space-y-4">
+              <p className="text-gray-400 text-sm">Login using your Google account popup.</p>
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+                className="w-full btn-primary disabled:opacity-50"
+              >
+                {loading ? 'Opening Google...' : 'Continue with Google'}
+              </button>
+            </div>
+          )}
+
+          {mode === 'phone' && (
+            <form onSubmit={handleVerifyPhoneOtp} className="space-y-4">
+              <div>
+                <label className="block text-gray-400 text-sm mb-2">Phone Number</label>
+                <input
+                  type="tel"
+                  name="phone"
+                  value={phoneData.phone}
+                  onChange={handlePhoneChange}
+                  required
+                  className="input-field"
+                  placeholder="+91xxxxxxxxxx"
+                />
+              </div>
+              {otpSent && (
+                <div>
+                  <label className="block text-gray-400 text-sm mb-2">OTP</label>
+                  <input
+                    type="text"
+                    name="otp"
+                    value={phoneData.otp}
+                    onChange={handlePhoneChange}
+                    required
+                    className="input-field"
+                    placeholder="6-digit OTP"
+                  />
+                </div>
+              )}
+              {!otpSent ? (
+                <button type="button" onClick={handleSendPhoneOtp} disabled={loading} className="w-full btn-primary disabled:opacity-50">
+                  {loading ? 'Sending OTP...' : 'Send OTP'}
+                </button>
+              ) : (
+                <button type="submit" disabled={loading} className="w-full btn-primary disabled:opacity-50">
+                  {loading ? 'Verifying...' : 'Verify OTP & Login'}
+                </button>
+              )}
+            </form>
+          )}
 
           <div className="mt-6 text-center">
             <p className="text-gray-400">

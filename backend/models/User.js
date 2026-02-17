@@ -84,6 +84,15 @@ const userSchema = new mongoose.Schema({
     type: Date,
     select: false
   },
+  phoneLoginOtpHash: {
+    type: String,
+    select: false,
+    default: ''
+  },
+  phoneLoginOtpExpires: {
+    type: Date,
+    select: false
+  },
   createdAt: {
     type: Date,
     default: Date.now
