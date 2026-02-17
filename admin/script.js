@@ -1,8 +1,16 @@
 (function () {
-  var API_BASE = (
-    localStorage.getItem('admin_api_base') ||
-    window.location.origin + '/api'
-  ).replace(/\/$/, '');
+  var savedApiBase = localStorage.getItem('admin_api_base') || '';
+  var sameOriginApiBase = (window.location.origin + '/api').replace(/\/$/, '');
+  var isLocalHost =
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
+
+  if (!isLocalHost && savedApiBase && savedApiBase.indexOf('http://localhost') === 0) {
+    localStorage.removeItem('admin_api_base');
+    savedApiBase = '';
+  }
+
+  var API_BASE = (isLocalHost && savedApiBase ? savedApiBase : sameOriginApiBase).replace(/\/$/, '');
 
   function getToken() {
     return localStorage.getItem('token');
