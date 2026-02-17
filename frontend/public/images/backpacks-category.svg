@@ -1,0 +1,29 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="800" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#243949"/>
+      <stop offset="1" stop-color="#517FA4"/>
+    </linearGradient>
+    <linearGradient id="bag" x1="320" y1="130" x2="480" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F5C98A"/>
+      <stop offset="1" stop-color="#D39A5E"/>
+    </linearGradient>
+  </defs>
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <circle cx="120" cy="90" r="60" fill="#FFFFFF" fill-opacity="0.08"/>
+  <circle cx="700" cy="520" r="110" fill="#FFFFFF" fill-opacity="0.07"/>
+
+  <path d="M350 190C350 150 370 125 400 125C430 125 450 150 450 190" stroke="#C07F3B" stroke-width="20" stroke-linecap="round"/>
+
+  <rect x="290" y="190" width="220" height="290" rx="44" fill="url(#bag)"/>
+  <rect x="325" y="240" width="150" height="95" rx="22" fill="#BD7E3F"/>
+  <rect x="340" y="255" width="120" height="65" rx="16" fill="#E2A764"/>
+
+  <rect x="275" y="230" width="24" height="170" rx="12" fill="#2B2B2B" fill-opacity="0.35"/>
+  <rect x="501" y="230" width="24" height="170" rx="12" fill="#2B2B2B" fill-opacity="0.35"/>
+
+  <rect x="370" y="345" width="60" height="16" rx="8" fill="#8D5B2D"/>
+  <circle cx="400" cy="353" r="8" fill="#EED2B2"/>
+
+  <text x="400" y="550" text-anchor="middle" fill="#F3F6FA" font-family="Arial, sans-serif" font-size="34" letter-spacing="2">BACKPACKS</text>
+</svg>

@@ -1,0 +1,28 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="800" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1E3C72"/>
+      <stop offset="1" stop-color="#2A5298"/>
+    </linearGradient>
+    <linearGradient id="case" x1="240" y1="210" x2="560" y2="470" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E2B67A"/>
+      <stop offset="1" stop-color="#C08A4E"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="600" fill="url(#bg)"/>
+  <circle cx="110" cy="490" r="95" fill="#FFFFFF" fill-opacity="0.08"/>
+  <circle cx="720" cy="100" r="70" fill="#FFFFFF" fill-opacity="0.07"/>
+
+  <rect x="240" y="210" width="320" height="260" rx="36" fill="url(#case)"/>
+  <rect x="300" y="170" width="200" height="55" rx="20" fill="#B97B3C"/>
+  <rect x="330" y="188" width="140" height="18" rx="9" fill="#E8BF8A"/>
+
+  <rect x="272" y="258" width="255" height="22" rx="11" fill="#9A6330"/>
+  <rect x="272" y="304" width="255" height="22" rx="11" fill="#9A6330"/>
+
+  <circle cx="300" cy="470" r="18" fill="#2F3B52"/>
+  <circle cx="500" cy="470" r="18" fill="#2F3B52"/>
+
+  <text x="400" y="550" text-anchor="middle" fill="#F4F7FB" font-family="Arial, sans-serif" font-size="34" letter-spacing="2">TRAVEL BAGS</text>
+</svg>

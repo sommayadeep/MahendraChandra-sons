@@ -1,0 +1,16 @@
+{
+  "name": "mc-sons-ecommerce",
+  "version": "1.0.0",
+  "description": "Mahendra Chandra & Sons - Premium Bag Brand eCommerce",
+  "scripts": {
+    "install:all": "cd backend && npm install && cd ../frontend && npm install",
+    "dev": "npm run backend & npm run frontend",
+    "backend": "cd backend && npm start",
+    "frontend": "cd frontend && npm run dev",
+    "start": "npm run dev"
+  },
+  "keywords": ["ecommerce", "nextjs", "express", "mongodb"],
+  "author": "Mahendra Chandra & Sons",
+  "license": "ISC"
+}
+

@@ -1,0 +1,76 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 20px;
+  background: #f7f7f7;
+  color: #222;
+}
+
+h1, h2 {
+  margin-top: 0;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+input, select, textarea, button {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+button {
+  cursor: pointer;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+th, td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.pending-row {
+  background: #ffeaea;
+}
+
+.small-input {
+  width: 150px;
+}
+
+.error {
+  color: #c00;
+}
+
+.success {
+  color: #0a7a0a;
+}
+
+.top-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+}

@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: mcsons-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 5001
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_EXPIRE
+        value: 7d
+      - key: FRONTEND_URL
+        sync: false
+      - key: FRONTEND_URLS
+        sync: false
+      - key: OWNER_EMAIL
+        sync: false
+      - key: OWNER_PASSWORD
+        sync: false
+      - key: OWNER_PASSWORD_LEGACY
+        sync: false
+      - key: OWNER_NAME
+        value: Mahendra Chandra Owner
+      - key: DEFAULT_ADMIN_PASSWORD
+        sync: false
+      - key: CONTACT_RECEIVER_EMAIL
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: SMTP_SERVICE
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
