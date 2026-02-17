@@ -381,6 +381,41 @@ exports.deleteProduct = async (req, res) => {
   }
 };
 
+// @desc    Remove duplicate products by name+category (keep newest)
+// @route   POST /api/products/deduplicate
+// @access  Private/Admin
+exports.deduplicateProducts = async (req, res) => {
+  try {
+    const allProducts = await Product.find({}).sort({ createdAt: -1 });
+    const keepByKey = new Map();
+    const deleteIds = [];
+
+    for (const product of allProducts) {
+      const key = `${normalizeName(product.name)}::${String(product.category || '').toLowerCase()}`;
+      if (!keepByKey.has(key)) {
+        keepByKey.set(key, product._id.toString());
+      } else {
+        deleteIds.push(product._id);
+      }
+    }
+
+    if (deleteIds.length > 0) {
+      await Product.deleteMany({ _id: { $in: deleteIds } });
+    }
+
+    res.json({
+      success: true,
+      message: `Removed ${deleteIds.length} duplicate product(s)`,
+      removedCount: deleteIds.length
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
 // @desc    Add review to product
 // @route   POST /api/products/:id/review
 // @access  Private

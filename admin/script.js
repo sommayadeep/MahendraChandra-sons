@@ -301,6 +301,23 @@
       }
     });
 
+    var cleanDuplicatesBtn = document.getElementById('cleanDuplicatesBtn');
+    if (cleanDuplicatesBtn) {
+      cleanDuplicatesBtn.addEventListener('click', async function () {
+        try {
+          var data = await request('/products/deduplicate', {
+            method: 'POST',
+            headers: jsonHeaders(),
+            body: JSON.stringify({})
+          });
+          setMessage('dashboardMessage', data.message || 'Duplicates removed', true);
+          await loadProducts();
+        } catch (err) {
+          setMessage('dashboardMessage', err.message, false);
+        }
+      });
+    }
+
     document.getElementById('addProductForm').addEventListener('submit', async function (e) {
       e.preventDefault();
       var f = e.target;

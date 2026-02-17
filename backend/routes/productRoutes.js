@@ -6,6 +6,7 @@ const {
   createProduct, 
   updateProduct, 
   deleteProduct,
+  deduplicateProducts,
   getFeaturedProducts,
   getCategories,
   addProductReview
@@ -20,6 +21,7 @@ router.get('/', getProducts);
 
 // Protected routes - Admin only
 router.post('/', isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), createProduct);
+router.post('/deduplicate', isAuthenticatedUser, authorizeRoles('admin'), deduplicateProducts);
 router.put('/:id', isAuthenticatedUser, authorizeRoles('admin'), upload.single('image'), updateProduct);
 router.delete('/:id', isAuthenticatedUser, authorizeRoles('admin'), deleteProduct);
 
