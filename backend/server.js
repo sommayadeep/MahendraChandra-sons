@@ -17,24 +17,36 @@ dotenv.config();
 const app = express();
 
 // Middleware
-const allowedOrigins = [
-  process.env.FRONTEND_URL,
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
-  ...(process.env.FRONTEND_URLS || '')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-].filter(Boolean);
+const allowedOrigins = new Set(
+  [
+    process.env.FRONTEND_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '',
+    ...(process.env.FRONTEND_URLS || '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean),
+  ].filter(Boolean)
+);
 
 app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
-      if (allowedOrigins.length === 0) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error('Not allowed by CORS'));
-    },
-    credentials: true,
+  cors((req, callback) => {
+    const requestOrigin = req.headers.origin || '';
+    const host = req.headers.host || '';
+    const sameOrigin = requestOrigin && host && requestOrigin.includes(host);
+    const renderOrigin = requestOrigin.endsWith('.onrender.com');
+    const vercelOrigin = requestOrigin.endsWith('.vercel.app');
+
+    const allow =
+      !requestOrigin ||
+      sameOrigin ||
+      allowedOrigins.has(requestOrigin) ||
+      renderOrigin ||
+      vercelOrigin;
+
+    callback(null, {
+      origin: allow,
+      credentials: true,
+    });
   })
 );
 app.use(express.json());
