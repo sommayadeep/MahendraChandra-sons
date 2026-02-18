@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 const ProductCard = ({ product, index }) => {
   const { addToCart } = useCart();
   const [isAdding, setIsAdding] = useState(false);
+  const productImage = product?.images?.[0] || product?.image || '/images/placeholder.jpg';
   const hasSalePrice =
     typeof product.salePrice === 'number' && product.salePrice > 0 && product.salePrice < product.price;
   const finalPrice = hasSalePrice ? product.salePrice : product.price;
@@ -34,7 +35,7 @@ const ProductCard = ({ product, index }) => {
       <Link href={`/product/${product._id}`}>
         <div className="relative aspect-[3/4] overflow-hidden bg-luxury-charcoal">
           <img
-            src={product.images[0] || '/images/placeholder.jpg'}
+            src={productImage}
             alt={product.name}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
           />
@@ -93,7 +94,15 @@ const HomePage = () => {
     const fetchProducts = async () => {
       try {
         const res = await productsAPI.getFeatured();
-        setFeaturedProducts(res.data.products);
+        const featured = res.data.products || [];
+        if (featured.length > 0) {
+          setFeaturedProducts(featured);
+          return;
+        }
+
+        // Fallback for stores that haven't manually marked featured products yet.
+        const fallbackRes = await productsAPI.getAll({ limit: 8, sort: 'newest' });
+        setFeaturedProducts(fallbackRes.data.products || []);
       } catch (error) {
         console.error('Error fetching products:', error);
       } finally {
