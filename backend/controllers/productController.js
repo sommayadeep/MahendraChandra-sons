@@ -8,10 +8,12 @@ const normalizeName = (value = '') => String(value).trim().replace(/\s+/g, ' ').
 const buildDuplicateQuery = (payload = {}) => {
   const normalizedName = normalizeName(payload.name);
   if (!normalizedName || !payload.category) return null;
-  const normalizedPattern = escapeRegExp(normalizedName).replace(/\\ /g, '\\s+');
   return {
     category: payload.category,
-    name: { $regex: `^${normalizedPattern}$`, $options: 'i' }
+    $or: [
+      { normalizedName },
+      { name: { $regex: `^${escapeRegExp(normalizedName).replace(/\\ /g, '\\s+')}$`, $options: 'i' } }
+    ]
   };
 };
 
@@ -97,6 +99,7 @@ const normalizeProductPayload = (body = {}) => {
   if (payload.salePrice !== undefined && payload.salePrice !== '') payload.salePrice = Number(payload.salePrice);
   if (payload.stock !== undefined) payload.stock = Number(payload.stock);
   if (payload.featured !== undefined) payload.featured = String(payload.featured) === 'true';
+  payload.normalizedName = normalizeName(payload.name);
 
   return payload;
 };
@@ -156,44 +159,21 @@ exports.getProducts = async (req, res) => {
       sortOption = { rating: -1 };
     }
 
-    // Pagination + de-duplication happen in MongoDB to avoid large in-memory sorts.
+    // Pagination happens in MongoDB with indexed sort fields.
     const parsedPage = parseInt(page, 10);
     const parsedLimit = parseInt(limit, 10);
     const pageNum = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
     const limitNum = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 12;
     const skip = (pageNum - 1) * limitNum;
 
-    const sortField = Object.keys(sortOption)[0] || 'createdAt';
-    const sortDir = sortOption[sortField];
-
-    const pipeline = [
-      { $match: query },
-      {
-        $addFields: {
-          _normalizedName: { $toLower: { $trim: { input: '$name' } } },
-          _normalizedCategory: { $toLower: { $ifNull: ['$category', ''] } },
-        }
-      },
-      { $sort: { [sortField]: sortDir, _id: -1 } },
-      {
-        $group: {
-          _id: { name: '$_normalizedName', category: '$_normalizedCategory' },
-          doc: { $first: '$$ROOT' }
-        }
-      },
-      { $replaceRoot: { newRoot: '$doc' } },
-      {
-        $facet: {
-          metadata: [{ $count: 'total' }],
-          products: [{ $skip: skip }, { $limit: limitNum }]
-        }
-      }
-    ];
-
-    const aggregateResult = await Product.aggregate(pipeline).allowDiskUse(true);
-    const metadata = aggregateResult[0]?.metadata || [];
-    const products = aggregateResult[0]?.products || [];
-    const total = metadata[0]?.total || 0;
+    const [products, total] = await Promise.all([
+      Product.find(query)
+        .sort(sortOption)
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Product.countDocuments(query)
+    ]);
 
     const normalizedProducts = products.map((product) => ({
       ...product,

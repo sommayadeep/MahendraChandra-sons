@@ -7,6 +7,11 @@ const productSchema = new mongoose.Schema({
     trim: true,
     maxlength: [100, 'Name cannot exceed 100 characters']
   },
+  normalizedName: {
+    type: String,
+    default: '',
+    index: true
+  },
   description: {
     type: String,
     required: [true, 'Please provide description'],
@@ -73,11 +78,20 @@ const productSchema = new mongoose.Schema({
   }
 });
 
+productSchema.pre('save', function normalizeProductName(next) {
+  this.normalizedName = String(this.name || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+  next();
+});
+
 // Create indexes for search
 productSchema.index({ name: 'text', description: 'text' });
 productSchema.index({ createdAt: -1 });
 productSchema.index({ price: 1 });
 productSchema.index({ rating: -1 });
 productSchema.index({ featured: 1, stock: 1, createdAt: -1 });
+productSchema.index({ category: 1, normalizedName: 1 });
 
 module.exports = mongoose.model('Product', productSchema);
