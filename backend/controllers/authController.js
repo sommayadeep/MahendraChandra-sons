@@ -105,7 +105,7 @@ exports.registerUser = async (req, res) => {
         state,
         pincode,
         gstNumber,
-        isEmailVerified: false,
+        isEmailVerified: true,
         isPhoneVerified: false
       });
     } else {
@@ -118,26 +118,18 @@ exports.registerUser = async (req, res) => {
       user.state = state || '';
       user.pincode = pincode || '';
       user.gstNumber = gstNumber || '';
-      user.isEmailVerified = false;
+      user.isEmailVerified = true;
       user.isPhoneVerified = false;
       await user.save();
     }
 
-    const { emailOtp } = await createAndStoreOtps(user);
-    await sendOtps(user, emailOtp);
-
-    const response = {
+    const token = generateToken(user._id);
+    return res.status(201).json({
       success: true,
-      message: 'Account created. Verify email OTP to continue.',
-      requiresVerification: true,
-      email: user.email
-    };
-
-    if (process.env.NODE_ENV !== 'production') {
-      response.devOtps = { emailOtp };
-    }
-
-    res.status(201).json(response);
+      message: 'Account created successfully',
+      token,
+      user: formatUser(user)
+    });
   } catch (error) {
     res.status(500).json({
       success: false,
