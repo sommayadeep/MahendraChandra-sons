@@ -463,26 +463,25 @@
     if (!totalOrdersEl || !pendingOrdersEl || !totalReturnsEl || !requestedReturnsEl) return;
 
     var analyticsData = await fetchOrderAnalyticsData();
-    var returnsData = await fetchReturnsData();
-    var returns = returnsData.requests || [];
     var analytics = analyticsData.analytics || {};
     var totalOrders = Number(analytics.totalOrders || 0);
     var pendingOrdersCount = Number(analytics.pendingOrders || 0);
-    var requestedReturns = returns.filter(function (r) { return r.status === 'Requested'; });
+    var totalReturnsCount = Number(analytics.totalReturnsExchanges || 0);
+    var requestedReturnsCount = Number(analytics.requestedReturnsExchanges || 0);
 
     totalOrdersEl.textContent = String(totalOrders);
     pendingOrdersEl.textContent = String(pendingOrdersCount);
-    totalReturnsEl.textContent = String(returns.length);
-    requestedReturnsEl.textContent = String(requestedReturns.length);
+    totalReturnsEl.textContent = String(totalReturnsCount);
+    requestedReturnsEl.textContent = String(requestedReturnsCount);
 
     var prevPending = Number(localStorage.getItem(PENDING_COUNT_KEY) || '0');
     var prevRequested = Number(localStorage.getItem(RETURN_COUNT_KEY) || '0');
 
     var pendingIncrease = Math.max(0, pendingOrdersCount - prevPending);
-    var requestedIncrease = Math.max(0, requestedReturns.length - prevRequested);
+    var requestedIncrease = Math.max(0, requestedReturnsCount - prevRequested);
 
     localStorage.setItem(PENDING_COUNT_KEY, String(pendingOrdersCount));
-    localStorage.setItem(RETURN_COUNT_KEY, String(requestedReturns.length));
+    localStorage.setItem(RETURN_COUNT_KEY, String(requestedReturnsCount));
 
     var messages = [];
     if (pendingIncrease > 0) {

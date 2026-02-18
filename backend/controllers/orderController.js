@@ -357,6 +357,25 @@ exports.getOrderAnalytics = async (req, res) => {
       { $sort: { _id: 1 } }
     ]);
 
+    const returnExchangeSummary = await Order.aggregate([
+      { $match: { 'returnExchangeRequests.0': { $exists: true } } },
+      { $unwind: '$returnExchangeRequests' },
+      {
+        $group: {
+          _id: null,
+          totalRequests: { $sum: 1 },
+          requestedRequests: {
+            $sum: {
+              $cond: [{ $eq: ['$returnExchangeRequests.status', 'Requested'] }, 1, 0]
+            }
+          }
+        }
+      }
+    ]);
+
+    const totalReturnsExchanges = returnExchangeSummary[0]?.totalRequests || 0;
+    const requestedReturnsExchanges = returnExchangeSummary[0]?.requestedRequests || 0;
+
     res.json({
       success: true,
       analytics: {
@@ -366,7 +385,9 @@ exports.getOrderAnalytics = async (req, res) => {
         shippedOrders,
         deliveredOrders,
         cancelledOrders,
-        monthlyOrders
+        monthlyOrders,
+        totalReturnsExchanges,
+        requestedReturnsExchanges
       }
     });
   } catch (error) {
@@ -639,9 +660,16 @@ exports.requestReturnOrExchange = async (req, res) => {
 // @access  Private/Admin
 exports.getReturnExchangeRequests = async (req, res) => {
   try {
+    const parsedLimit = parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(parsedLimit) && parsedLimit > 0
+      ? Math.min(parsedLimit, 1000)
+      : 300;
+
     const orders = await Order.find({ 'returnExchangeRequests.0': { $exists: true } })
-      .populate('user', 'name email phone')
-      .sort({ createdAt: -1 });
+      .select('user shippingDetails phone returnExchangeRequests createdAt')
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
 
     const requests = [];
     for (const order of orders) {
@@ -649,8 +677,8 @@ exports.getReturnExchangeRequests = async (req, res) => {
         requests.push({
           requestId: item._id,
           orderId: order._id,
-          customerUid: item.customerUid || String(order.user?._id || order.user || ''),
-          customerName: order.user?.name || order.shippingDetails?.name || '',
+          customerUid: item.customerUid || String(order.user || ''),
+          customerName: order.shippingDetails?.name || '',
           customerPhone: order.shippingDetails?.phone || order.phone || '',
           requestType: item.requestType,
           reason: item.reason || '',
