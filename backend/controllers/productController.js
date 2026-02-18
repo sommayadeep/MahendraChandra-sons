@@ -156,25 +156,54 @@ exports.getProducts = async (req, res) => {
       sortOption = { rating: -1 };
     }
 
-    // Pagination (applied after dedupe to avoid duplicate cards across pages)
-    const pageNum = parseInt(page, 10);
-    const limitNum = parseInt(limit, 10);
+    // Pagination + de-duplication happen in MongoDB to avoid large in-memory sorts.
+    const parsedPage = parseInt(page, 10);
+    const parsedLimit = parseInt(limit, 10);
+    const pageNum = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+    const limitNum = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 12;
     const skip = (pageNum - 1) * limitNum;
 
-    const allMatchedProducts = await Product.find(query).sort(sortOption);
-    const dedupedAllProducts = dedupeByNameCategory(allMatchedProducts);
-    const total = dedupedAllProducts.length;
-    const dedupedProducts = dedupedAllProducts.slice(skip, skip + limitNum);
+    const sortField = Object.keys(sortOption)[0] || 'createdAt';
+    const sortDir = sortOption[sortField];
 
-    const normalizedProducts = dedupedProducts.map((product) => ({
-      ...product.toObject(),
+    const pipeline = [
+      { $match: query },
+      {
+        $addFields: {
+          _normalizedName: { $toLower: { $trim: { input: '$name' } } },
+          _normalizedCategory: { $toLower: { $ifNull: ['$category', ''] } },
+        }
+      },
+      { $sort: { [sortField]: sortDir, _id: -1 } },
+      {
+        $group: {
+          _id: { name: '$_normalizedName', category: '$_normalizedCategory' },
+          doc: { $first: '$$ROOT' }
+        }
+      },
+      { $replaceRoot: { newRoot: '$doc' } },
+      {
+        $facet: {
+          metadata: [{ $count: 'total' }],
+          products: [{ $skip: skip }, { $limit: limitNum }]
+        }
+      }
+    ];
+
+    const aggregateResult = await Product.aggregate(pipeline).allowDiskUse(true);
+    const metadata = aggregateResult[0]?.metadata || [];
+    const products = aggregateResult[0]?.products || [];
+    const total = metadata[0]?.total || 0;
+
+    const normalizedProducts = products.map((product) => ({
+      ...product,
       image: product.image || product.images?.[0] || ''
     }));
 
     res.json({
       success: true,
       products: normalizedProducts,
-      totalPages: Math.ceil(total / limitNum),
+      totalPages: Math.max(1, Math.ceil(total / limitNum)),
       currentPage: pageNum,
       total
     });
@@ -191,13 +220,25 @@ exports.getProducts = async (req, res) => {
 // @access  Public
 exports.getFeaturedProducts = async (req, res) => {
   try {
-    const products = await Product.find({ featured: true, stock: { $gt: 0 } })
+    let products = await Product.find({ featured: true, stock: { $gt: 0 } })
       .sort({ createdAt: -1 })
+      .allowDiskUse(true)
       .limit(8);
+
+    // Fallback: if no items are explicitly featured, show latest in-stock products.
+    if (products.length === 0) {
+      products = await Product.find({ stock: { $gt: 0 } })
+        .sort({ createdAt: -1 })
+        .allowDiskUse(true)
+        .limit(8);
+    }
 
     const normalizedProducts = products.map((product) => ({
       ...product.toObject(),
-      image: product.image || product.images?.[0] || ''
+      image: product.image || product.images?.[0] || '',
+      images: Array.isArray(product.images) && product.images.length > 0
+        ? product.images
+        : [product.image || ''].filter(Boolean)
     }));
 
     res.json({
@@ -263,7 +304,7 @@ exports.createProduct = async (req, res) => {
 
     const duplicateQuery = buildDuplicateQuery(payload);
     const duplicateProducts = duplicateQuery
-      ? await Product.find(duplicateQuery).sort({ createdAt: 1 })
+      ? await Product.find(duplicateQuery).sort({ createdAt: 1 }).allowDiskUse(true)
       : [];
 
     if (duplicateProducts.length > 0) {
@@ -386,7 +427,9 @@ exports.deleteProduct = async (req, res) => {
 // @access  Private/Admin
 exports.deduplicateProducts = async (req, res) => {
   try {
-    const allProducts = await Product.find({}).sort({ createdAt: -1 });
+    const allProducts = await Product.find({})
+      .sort({ createdAt: -1 })
+      .allowDiskUse(true);
     const keepByKey = new Map();
     const deleteIds = [];
 
