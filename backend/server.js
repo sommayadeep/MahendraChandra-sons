@@ -9,6 +9,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const cartRoutes = require('./routes/cartRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const User = require('./models/User');
+const multer = require('multer');
 
 // Load env vars
 dotenv.config();
@@ -114,6 +115,23 @@ const seedAdmin = async () => {
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  if (err instanceof multer.MulterError) {
+    const message = err.code === 'LIMIT_FILE_SIZE'
+      ? 'Image file is too large. Maximum allowed size is 15MB.'
+      : err.message;
+    return res.status(400).json({
+      success: false,
+      message
+    });
+  }
+
+  if (err && err.message) {
+    return res.status(400).json({
+      success: false,
+      message: err.message
+    });
+  }
+
   res.status(500).json({
     success: false,
     message: 'Internal server error'
