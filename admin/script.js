@@ -31,6 +31,29 @@
     };
   }
 
+  function decodeJwtPayload(token) {
+    try {
+      if (!token || token.split('.').length < 2) return null;
+      var base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      var json = decodeURIComponent(
+        atob(base64)
+          .split('')
+          .map(function (c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+          })
+          .join('')
+      );
+      return JSON.parse(json);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isExpiredJwt(payload) {
+    if (!payload || !payload.exp) return false;
+    return Date.now() >= payload.exp * 1000;
+  }
+
   function setMessage(elId, text, ok) {
     var el = document.getElementById(elId);
     if (!el) return;
@@ -71,7 +94,13 @@
   }
 
   async function request(path, options) {
-    var res = await fetch(API_BASE + path, options || {});
+    var url = API_BASE + path;
+    var res;
+    try {
+      res = await fetch(url, options || {});
+    } catch (error) {
+      throw new Error('Failed to connect to API at ' + API_BASE + '. Check backend status/network.');
+    }
     return parseResponse(res);
   }
 
@@ -114,7 +143,21 @@
   }
 
   function ensureAuthenticatedPage() {
-    if (!getToken()) {
+    var token = getToken();
+    if (!token) {
+      window.location.href = '/admin/login.html';
+      return false;
+    }
+
+    var payload = decodeJwtPayload(token);
+    if (!payload || isExpiredJwt(payload)) {
+      localStorage.removeItem('token');
+      window.location.href = '/admin/login.html';
+      return false;
+    }
+
+    if (payload.role && payload.role !== 'admin') {
+      localStorage.removeItem('token');
       window.location.href = '/admin/login.html';
       return false;
     }
@@ -165,6 +208,13 @@
     });
   }
 
+  async function fetchOrderAnalyticsData() {
+    return request('/orders/analytics', {
+      method: 'GET',
+      headers: jsonHeaders()
+    });
+  }
+
   async function fetchReturnsData() {
     return request('/orders/returns', {
       method: 'GET',
@@ -176,7 +226,7 @@
     var tbody = document.querySelector('#productsTable tbody');
     if (!tbody) return;
 
-    var data = await request('/products', {
+    var data = await request('/products?limit=200&fields=basic', {
       method: 'GET',
       headers: jsonHeaders()
     });
@@ -412,26 +462,26 @@
 
     if (!totalOrdersEl || !pendingOrdersEl || !totalReturnsEl || !requestedReturnsEl) return;
 
-    var ordersData = await fetchOrdersData();
+    var analyticsData = await fetchOrderAnalyticsData();
     var returnsData = await fetchReturnsData();
-
-    var orders = ordersData.orders || [];
     var returns = returnsData.requests || [];
-    var pendingOrders = orders.filter(function (o) { return o.orderStatus === 'Pending'; });
+    var analytics = analyticsData.analytics || {};
+    var totalOrders = Number(analytics.totalOrders || 0);
+    var pendingOrdersCount = Number(analytics.pendingOrders || 0);
     var requestedReturns = returns.filter(function (r) { return r.status === 'Requested'; });
 
-    totalOrdersEl.textContent = String(orders.length);
-    pendingOrdersEl.textContent = String(pendingOrders.length);
+    totalOrdersEl.textContent = String(totalOrders);
+    pendingOrdersEl.textContent = String(pendingOrdersCount);
     totalReturnsEl.textContent = String(returns.length);
     requestedReturnsEl.textContent = String(requestedReturns.length);
 
     var prevPending = Number(localStorage.getItem(PENDING_COUNT_KEY) || '0');
     var prevRequested = Number(localStorage.getItem(RETURN_COUNT_KEY) || '0');
 
-    var pendingIncrease = Math.max(0, pendingOrders.length - prevPending);
+    var pendingIncrease = Math.max(0, pendingOrdersCount - prevPending);
     var requestedIncrease = Math.max(0, requestedReturns.length - prevRequested);
 
-    localStorage.setItem(PENDING_COUNT_KEY, String(pendingOrders.length));
+    localStorage.setItem(PENDING_COUNT_KEY, String(pendingOrdersCount));
     localStorage.setItem(RETURN_COUNT_KEY, String(requestedReturns.length));
 
     var messages = [];
@@ -487,8 +537,12 @@
       refreshBtn.addEventListener('click', async function () {
         try {
           await loadProducts();
-          await updateDashboardCountsAndNotifications();
-          setMessage('dashboardMessage', 'Data refreshed', true);
+          try {
+            await updateDashboardCountsAndNotifications();
+            setMessage('dashboardMessage', 'Data refreshed', true);
+          } catch (errCounts) {
+            setMessage('dashboardMessage', 'Products refreshed, but order stats failed: ' + errCounts.message, false);
+          }
         } catch (err) {
           setMessage('dashboardMessage', err.message, false);
         }
@@ -605,7 +659,11 @@
     (async function init() {
       try {
         await loadProducts();
-        await updateDashboardCountsAndNotifications();
+        try {
+          await updateDashboardCountsAndNotifications();
+        } catch (errCounts) {
+          setMessage('dashboardMessage', 'Loaded products, but order stats failed: ' + errCounts.message, false);
+        }
         setInterval(function () {
           updateDashboardCountsAndNotifications().catch(function () {});
         }, 30000);

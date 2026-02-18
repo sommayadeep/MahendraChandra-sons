@@ -124,7 +124,7 @@ const dedupeByNameCategory = (products = []) => {
 // @access  Public
 exports.getProducts = async (req, res) => {
   try {
-    const { category, sort, search, minPrice, maxPrice, page = 1, limit = 12 } = req.query;
+    const { category, sort, search, minPrice, maxPrice, page = 1, limit = 12, fields } = req.query;
 
     let query = {};
 
@@ -166,8 +166,12 @@ exports.getProducts = async (req, res) => {
     const limitNum = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : 12;
     const skip = (pageNum - 1) * limitNum;
 
+    const projection = fields === 'basic'
+      ? '_id name price salePrice stock category createdAt'
+      : undefined;
+
     const [products, total] = await Promise.all([
-      Product.find(query)
+      Product.find(query, projection)
         .sort(sortOption)
         .skip(skip)
         .limit(limitNum)
