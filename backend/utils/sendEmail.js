@@ -14,13 +14,28 @@ const getTransporter = () => {
     SMTP_PASS
   } = process.env;
 
-  if (!SMTP_USER || !SMTP_PASS) {
+  const isPlaceholderValue = (value = '') => {
+    const v = String(value).trim().toLowerCase();
+    if (!v) return true;
+    return (
+      v.includes('your gmail') ||
+      v.includes('app password') ||
+      v.includes('from twilio console') ||
+      v === 'same gmail id' ||
+      v === '...'
+    );
+  };
+
+  if (!SMTP_USER || !SMTP_PASS || isPlaceholderValue(SMTP_USER) || isPlaceholderValue(SMTP_PASS)) {
     throw new Error('Email service is not configured. Missing SMTP_USER or SMTP_PASS.');
   }
 
   if (SMTP_SERVICE) {
     return nodemailer.createTransport({
       service: SMTP_SERVICE,
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 10000,
       auth: {
         user: SMTP_USER,
         pass: SMTP_PASS
@@ -38,6 +53,9 @@ const getTransporter = () => {
     host: SMTP_HOST,
     port,
     secure: port === 465,
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 10000,
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS
