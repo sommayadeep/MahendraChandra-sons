@@ -33,12 +33,14 @@ app.use(
   cors((req, callback) => {
     const requestOrigin = req.headers.origin || '';
     const host = req.headers.host || '';
+    const isLocalDevOrigin = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(requestOrigin);
     const sameOrigin = requestOrigin && host && requestOrigin.includes(host);
     const renderOrigin = requestOrigin.endsWith('.onrender.com');
     const vercelOrigin = requestOrigin.endsWith('.vercel.app');
 
     const allow =
       !requestOrigin ||
+      isLocalDevOrigin ||
       sameOrigin ||
       allowedOrigins.has(requestOrigin) ||
       renderOrigin ||

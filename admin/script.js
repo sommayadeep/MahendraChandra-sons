@@ -1,16 +1,15 @@
 (function () {
-  var savedApiBase = localStorage.getItem('admin_api_base') || '';
   var sameOriginApiBase = (window.location.origin + '/api').replace(/\/$/, '');
-  var isLocalHost =
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1';
+  var params = new URLSearchParams(window.location.search);
+  var queryApiBase = (params.get('apiBase') || '').trim();
+  var savedApiBase = (localStorage.getItem('admin_api_base') || '').trim();
 
-  if (!isLocalHost && savedApiBase && savedApiBase.indexOf('http://localhost') === 0) {
+  if (savedApiBase) {
+    // Old localStorage overrides can point admin to a different backend/database.
     localStorage.removeItem('admin_api_base');
-    savedApiBase = '';
   }
 
-  var API_BASE = (isLocalHost && savedApiBase ? savedApiBase : sameOriginApiBase).replace(/\/$/, '');
+  var API_BASE = (queryApiBase || sameOriginApiBase).replace(/\/$/, '');
   var PENDING_COUNT_KEY = 'admin_last_pending_count';
   var RETURN_COUNT_KEY = 'admin_last_requested_returns_count';
 
