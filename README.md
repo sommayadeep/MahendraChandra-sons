@@ -40,7 +40,7 @@ A production-ready full-stack eCommerce application for "Mahendra Chandra & Sons
 ### Step 2: Install Dependencies
 
 ```bash
-# Install backend dependencies
+# Install backend dependenties
 cd backend
 npm install
 
