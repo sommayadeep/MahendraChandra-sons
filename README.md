@@ -29,7 +29,7 @@ A production-ready full-stack eCommerce application for "Mahendra Chandra & Sons
 **Option A: MongoDB Atlas (Recommended for Production)**
 1. Create a free account at https://www.mongodb.com/cloud/atlas
 2. Create a free cluster
-3. Get your connection string (should look like: `mongodb+srv://username:password@cluster.mongodb.net/mc-sons`)
+3. Get your connection string (should look like `mongodb+srv://username:password@cluster.mongodb.net/mc-sons`)
 4. Replace the connection string in `backend/.env`
 
 **Option B: Local MongoDB**
