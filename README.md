@@ -24,7 +24,7 @@ A production-ready full-stack eCommerce application for "Mahendra Chandra & Sons
 - Node.js 18+
 - MongoDB Atlas Account (cloud) OR local MongoDB installation
 
-### Step 1: Setup MongoDB
+### Step 1: SetUp MongoDB
 
 **Option A: MongoDB Atlas (Recommended for Production)**
 1. Create a free account at https://www.mongodb.com/cloud/atlas
